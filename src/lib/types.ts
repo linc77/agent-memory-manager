@@ -33,6 +33,7 @@ export interface MemoryEntry {
   topic: MemoryTopic;
   title: string;
   summary: string;
+  searchText: string;
   sourcePath: string;
   startLine: number;
   endLine: number;

@@ -12,6 +12,7 @@ pnpm tauri dev
 ## Checks
 
 ```bash
+pnpm verify
 pnpm build
 cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture
 cargo check --manifest-path src-tauri/Cargo.toml

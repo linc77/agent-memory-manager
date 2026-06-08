@@ -20,6 +20,7 @@ pub struct MemoryEntry {
     pub topic: MemoryTopic,
     pub title: String,
     pub summary: String,
+    pub search_text: String,
     pub source_path: String,
     pub start_line: usize,
     pub end_line: usize,
@@ -92,6 +93,7 @@ fn flush_entry(
         topic: infer_topic(relative_path, title, &body),
         title: title.to_string(),
         summary,
+        search_text: body,
         source_path: relative_path.to_string(),
         start_line,
         end_line,
@@ -147,5 +149,18 @@ mod tests {
         assert!(entries
             .iter()
             .any(|entry| entry.summary.contains("Python/Rust")));
+    }
+
+    #[test]
+    fn keeps_full_search_text_for_multi_bullet_notes() {
+        let entries = parse_entries(
+            "extensions/ad_hoc/notes/profile.md",
+            "Memory update request:\n\n- `dilidili` is no longer active.\n- The user's primary technical stack has shifted to Python/Rust.\n",
+        );
+
+        let entry = entries.first().expect("expected one note entry");
+
+        assert!(entry.summary.contains("dilidili"));
+        assert!(entry.search_text.contains("Python/Rust"));
     }
 }

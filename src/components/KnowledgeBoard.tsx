@@ -43,7 +43,9 @@ export function KnowledgeBoard({
           : entry.topic === activeTopic;
     const matchesQuery =
       !lowerQuery ||
-      `${entry.title} ${entry.summary} ${entry.sourcePath}`.toLowerCase().includes(lowerQuery);
+      `${entry.title} ${entry.summary} ${entry.searchText} ${entry.sourcePath}`
+        .toLowerCase()
+        .includes(lowerQuery);
     return matchesTopic && matchesQuery;
   });
 

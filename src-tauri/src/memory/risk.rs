@@ -76,6 +76,7 @@ mod tests {
                 topic: MemoryTopic::Profile,
                 title: "Old profile".to_string(),
                 summary: "Java / Spring Boot full-stack developer".to_string(),
+                search_text: "Java / Spring Boot full-stack developer".to_string(),
                 source_path: "MEMORY.md".to_string(),
                 start_line: 1,
                 end_line: 2,
@@ -85,6 +86,8 @@ mod tests {
                 topic: MemoryTopic::Overrides,
                 title: "Memory update request".to_string(),
                 summary: "The user's primary technical stack has shifted to Python/Rust."
+                    .to_string(),
+                search_text: "The user's primary technical stack has shifted to Python/Rust."
                     .to_string(),
                 source_path: "extensions/ad_hoc/notes/profile.md".to_string(),
                 start_line: 1,
