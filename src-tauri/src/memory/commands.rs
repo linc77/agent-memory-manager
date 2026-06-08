@@ -11,6 +11,7 @@ use super::risk::{detect_risks, RiskFlag};
 use super::scanner::{scan_sources, MemorySource};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScanResult {
     pub root: String,
     pub sources: Vec<MemorySource>,

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
 pub enum MemoryTopic {
     Profile,
     Projects,
@@ -13,6 +14,7 @@ pub enum MemoryTopic {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MemoryEntry {
     pub id: String,
     pub topic: MemoryTopic,

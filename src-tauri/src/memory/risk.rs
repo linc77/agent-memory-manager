@@ -3,12 +3,14 @@ use serde::{Deserialize, Serialize};
 use super::parser::MemoryEntry;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub enum RiskKind {
     StaleConflict,
     CoveredByOverride,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RiskFlag {
     pub id: String,
     pub kind: RiskKind,

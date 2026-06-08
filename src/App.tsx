@@ -1,50 +1,106 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { draftCorrection, scanMemories, writeCorrection } from "./lib/api";
+import type { CorrectionDraft, MemoryEntry, MemoryTopic } from "./lib/types";
+import { CorrectionDialog } from "./components/CorrectionDialog";
+import { Inspector } from "./components/Inspector";
+import { KnowledgeBoard } from "./components/KnowledgeBoard";
+import { Sidebar } from "./components/Sidebar";
 import "./App.css";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const queryClient = useQueryClient();
+  const rootOverride: string | null = null;
+  const [activeTopic, setActiveTopic] = useState<MemoryTopic>("profile");
+  const [query, setQuery] = useState("");
+  const [selectedEntryId, setSelectedEntryId] = useState<string | undefined>();
+  const [draft, setDraft] = useState<CorrectionDraft | null>(null);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  const scanQuery = useQuery({
+    queryKey: ["memories", rootOverride],
+    queryFn: () => scanMemories(rootOverride),
+  });
+
+  const selectedEntry = useMemo(
+    () => scanQuery.data?.entries.find((entry) => entry.id === selectedEntryId),
+    [scanQuery.data?.entries, selectedEntryId],
+  );
+
+  const selectedSource = useMemo(
+    () =>
+      selectedEntry
+        ? scanQuery.data?.sources.find((source) => source.relativePath === selectedEntry.sourcePath)
+        : undefined,
+    [scanQuery.data?.sources, selectedEntry],
+  );
+
+  const selectedRisk = useMemo(
+    () =>
+      selectedEntry
+        ? scanQuery.data?.risks.find((risk) => risk.entryId === selectedEntry.id)
+        : undefined,
+    [scanQuery.data?.risks, selectedEntry],
+  );
+
+  const draftMutation = useMutation({
+    mutationFn: (entry: MemoryEntry) =>
+      draftCorrection(rootOverride, "memory-correction", [
+        `Review and update memory from ${entry.sourcePath} lines ${entry.startLine}-${entry.endLine}: ${entry.summary}`,
+      ]),
+    onSuccess: setDraft,
+  });
+
+  const writeMutation = useMutation({
+    mutationFn: (nextDraft: CorrectionDraft) => writeCorrection(rootOverride, nextDraft),
+    onSuccess: async () => {
+      setDraft(null);
+      await queryClient.invalidateQueries({ queryKey: ["memories", rootOverride] });
+    },
+  });
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
+    <div className="app-shell">
+      <Sidebar
+        activeTopic={activeTopic}
+        onSelectTopic={(topic) => {
+          setActiveTopic(topic);
+          setSelectedEntryId(undefined);
         }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
+        scan={scanQuery.data}
+      />
+
+      <KnowledgeBoard
+        activeTopic={activeTopic}
+        onQueryChange={setQuery}
+        onRefresh={() => scanQuery.refetch()}
+        onSelectEntry={(entry) => setSelectedEntryId(entry.id)}
+        query={query}
+        scan={scanQuery.data}
+        selectedEntryId={selectedEntryId}
+      />
+
+      <Inspector
+        entry={selectedEntry}
+        onDraftCorrection={(entry) => draftMutation.mutate(entry)}
+        risk={selectedRisk}
+        rootOverride={rootOverride}
+        source={selectedSource}
+      />
+
+      {scanQuery.isLoading && <div className="status-toast">Scanning Codex memory...</div>}
+      {scanQuery.error && <div className="status-toast error">{String(scanQuery.error)}</div>}
+      {draftMutation.error && <div className="status-toast error">{String(draftMutation.error)}</div>}
+      {writeMutation.error && <div className="status-toast error">{String(writeMutation.error)}</div>}
+
+      {draft && (
+        <CorrectionDialog
+          draft={draft}
+          isWriting={writeMutation.isPending}
+          onCancel={() => setDraft(null)}
+          onConfirm={() => writeMutation.mutate(draft)}
         />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+      )}
+    </div>
   );
 }
 

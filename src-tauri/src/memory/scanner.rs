@@ -5,6 +5,7 @@ use std::path::Path;
 use std::time::UNIX_EPOCH;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub enum MemorySourceKind {
     Summary,
     Registry,
@@ -16,6 +17,7 @@ pub enum MemorySourceKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MemorySource {
     pub id: String,
     pub path: String,
