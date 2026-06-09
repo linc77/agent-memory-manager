@@ -17,11 +17,12 @@
 
 - `README.md`: project purpose and basic commands.
 - `docs/README.md`: repository knowledge map and current status.
-- `docs/goals/`: long-running Codex goals and success criteria.
+- `docs/loop/README.md`: loop index; read before opening loop goals, issues, or verification records.
+- `docs/loop/goals/`: long-running Codex goals and success criteria.
 - `docs/superpowers/specs/2026-06-08-agent-memory-manager-design.md`: product design.
 - `docs/superpowers/plans/2026-06-08-agent-memory-manager-mvp.md`: MVP implementation plan.
-- `docs/verification/`: live verification records.
-- `docs/issues/`: known gaps and focused follow-up tasks.
+- `docs/loop/verification/`: live verification records.
+- `docs/loop/issues/`: known gaps and focused follow-up tasks.
 
 ## Checks
 
@@ -34,9 +35,11 @@ pnpm verify
 `pnpm verify` runs:
 
 ```bash
+pnpm exec vitest run
 pnpm build
 cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture
 cargo check --manifest-path src-tauri/Cargo.toml
+bash scripts/verify-loop.sh
 git diff --check
 ```
 

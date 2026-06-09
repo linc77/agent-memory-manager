@@ -1,6 +1,6 @@
 import { ExternalLink, FileText, PencilLine } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { getSourceExcerpt } from "../lib/api";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { getSourceExcerpt, openSourceFile } from "../lib/api";
 import type { MemoryEntry, MemorySource, RiskFlag } from "../lib/types";
 
 export function Inspector({
@@ -22,6 +22,13 @@ export function Inspector({
     queryFn: () =>
       getSourceExcerpt(rootOverride, source!.path, entry!.startLine, entry!.endLine),
   });
+
+  const openSourceMutation = useMutation({
+    mutationFn: (path: string) => openSourceFile(path),
+  });
+  const excerptText = excerptQuery.error
+    ? String(excerptQuery.error)
+    : excerptQuery.data ?? "Loading source excerpt...";
 
   if (!entry) {
     return (
@@ -58,7 +65,7 @@ export function Inspector({
 
       <section className="inspector-panel">
         <strong>Excerpt</strong>
-        <pre>{excerptQuery.data ?? "Loading source excerpt..."}</pre>
+        <pre>{excerptText}</pre>
       </section>
 
       <div className="inspector-actions">
@@ -66,11 +73,19 @@ export function Inspector({
           <PencilLine size={16} />
           Draft correction
         </button>
-        <button className="secondary-button" disabled={!source} type="button">
+        <button
+          className="secondary-button"
+          disabled={!source || openSourceMutation.isPending}
+          onClick={() => source && openSourceMutation.mutate(source.path)}
+          type="button"
+        >
           <ExternalLink size={16} />
           Open source
         </button>
       </div>
+      {openSourceMutation.error && (
+        <div className="inspector-error">{String(openSourceMutation.error)}</div>
+      )}
     </aside>
   );
 }

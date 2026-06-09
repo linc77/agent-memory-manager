@@ -2,8 +2,13 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::codex_audit::{
+    run_codex_audit_for_root, CodexAuditMode, CodexAuditRun, RealCodexExecRunner,
+};
 use super::correction::{
-    draft_correction as build_correction_draft, write_correction_note, CorrectionDraft,
+    draft_correction as build_correction_draft,
+    draft_correction_from_content as build_correction_draft_from_content, write_correction_note,
+    CorrectionDraft,
 };
 use super::parser::{parse_entries, MemoryEntry};
 use super::paths::resolve_memory_root;
@@ -72,6 +77,16 @@ pub fn draft_correction(
 }
 
 #[tauri::command]
+pub fn draft_correction_from_content(
+    root_override: Option<String>,
+    slug: String,
+    content: String,
+) -> Result<CorrectionDraft, String> {
+    let root = resolve_memory_root(root_override);
+    Ok(build_correction_draft_from_content(&root, &slug, &content))
+}
+
+#[tauri::command]
 pub fn write_correction(
     root_override: Option<String>,
     draft: CorrectionDraft,
@@ -81,10 +96,44 @@ pub fn write_correction(
     Ok(path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+pub fn run_codex_audit(
+    root_override: Option<String>,
+    mode: CodexAuditMode,
+) -> Result<CodexAuditRun, String> {
+    let root = resolve_memory_root(root_override);
+    run_codex_audit_for_root(&root, mode, &RealCodexExecRunner)
+}
+
 fn ensure_inside_root(path: &Path, root: &Path) -> Result<(), String> {
+    let root = fs::canonicalize(root).map_err(|err| err.to_string())?;
+    let path = fs::canonicalize(path).map_err(|err| err.to_string())?;
     if path.starts_with(root) {
         Ok(())
     } else {
         Err("source path must stay inside the selected memory root".to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_excerpt_path_traversal_outside_root() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("memory");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(temp.path().join("outside.md"), "outside").unwrap();
+
+        let err = get_source_excerpt(
+            Some(root.to_string_lossy().to_string()),
+            root.join("../outside.md").to_string_lossy().to_string(),
+            1,
+            1,
+        )
+        .unwrap_err();
+
+        assert_eq!(err, "source path must stay inside the selected memory root");
     }
 }

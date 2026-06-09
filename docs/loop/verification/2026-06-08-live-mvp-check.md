@@ -37,5 +37,5 @@ Failed:
 
 ## Follow-Up
 
-See `docs/issues/2026-06-08-search-body-coverage.md`.
+See `docs/loop/issues/2026-06-08-search-body-coverage.md`.
 

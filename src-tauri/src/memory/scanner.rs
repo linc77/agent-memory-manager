@@ -38,8 +38,20 @@ pub fn scan_sources(root: &Path) -> std::io::Result<Vec<MemorySource>> {
         MemorySourceKind::Summary,
         &mut sources,
     )?;
-    collect_if_file(root, root, "MEMORY.md", MemorySourceKind::Registry, &mut sources)?;
-    collect_if_file(root, root, "raw_memories.md", MemorySourceKind::Raw, &mut sources)?;
+    collect_if_file(
+        root,
+        root,
+        "MEMORY.md",
+        MemorySourceKind::Registry,
+        &mut sources,
+    )?;
+    collect_if_file(
+        root,
+        root,
+        "raw_memories.md",
+        MemorySourceKind::Raw,
+        &mut sources,
+    )?;
     collect_dir(
         root,
         &root.join("rollout_summaries"),
@@ -95,7 +107,11 @@ fn collect_dir(
     Ok(())
 }
 
-fn collect_skill_files(root: &Path, dir: &Path, out: &mut Vec<MemorySource>) -> std::io::Result<()> {
+fn collect_skill_files(
+    root: &Path,
+    dir: &Path,
+    out: &mut Vec<MemorySource>,
+) -> std::io::Result<()> {
     if !dir.is_dir() {
         return Ok(());
     }

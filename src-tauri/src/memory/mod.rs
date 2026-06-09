@@ -1,3 +1,4 @@
+pub mod codex_audit;
 pub mod commands;
 pub mod correction;
 pub mod parser;

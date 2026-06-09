@@ -22,6 +22,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -32,10 +33,38 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 220px minmax(420px, 1fr) 340px;
   height: 100vh;
   overflow: hidden;
   background: #eef0f3;
+}
+
+.app-shell.resizing,
+.app-shell.resizing * {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.pane-resizer {
+  position: relative;
+  z-index: 1;
+  min-width: 8px;
+  border: 0;
+  outline: 0;
+  background: #eef0f3;
+  cursor: col-resize;
+}
+
+.pane-resizer::before {
+  position: absolute;
+  inset: 0 3px;
+  content: "";
+  border-radius: 999px;
+}
+
+.pane-resizer:hover::before,
+.pane-resizer.active::before,
+.pane-resizer:focus-visible::before {
+  background: #98a2b3;
 }
 
 .sidebar {
@@ -74,8 +103,22 @@ button {
 
 .topic-nav {
   display: grid;
-  gap: 4px;
+  gap: 12px;
   padding: 0 10px;
+}
+
+.topic-section {
+  display: grid;
+  gap: 4px;
+}
+
+.topic-section-label {
+  padding: 0 9px;
+  color: #8a93a2;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .topic-item {
@@ -110,12 +153,11 @@ button {
 }
 
 .sidebar-footer {
-  display: flex;
+  display: grid;
   gap: 8px;
-  align-items: center;
   min-width: 0;
   margin-top: auto;
-  padding: 14px 16px 16px;
+  padding: 12px 12px 14px;
   border-top: 1px solid #d9dde4;
 }
 
@@ -123,6 +165,40 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.root-label {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+}
+
+.root-label span {
+  min-width: 0;
+}
+
+.root-input {
+  display: grid;
+  gap: 5px;
+  color: #6f7785;
+  font-size: 11px;
+}
+
+.root-input input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 9px;
+  color: #1f2937;
+  border: 1px solid #d3d9e3;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.root-actions {
+  display: flex;
+  gap: 7px;
 }
 
 .board {
@@ -136,6 +212,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
+  flex-wrap: wrap;
   margin-bottom: 18px;
 }
 
@@ -163,17 +240,38 @@ h2 {
   font-size: 19px;
 }
 
+.toolbar-meta {
+  display: inline-block;
+  margin-top: 4px;
+  color: #6f7785;
+  font-size: 12px;
+}
+
 .toolbar-actions {
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: flex-end;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.mode-select {
+  height: 34px;
+  max-width: 160px;
+  padding: 0 9px;
+  color: #374151;
+  border: 1px solid #d8dde6;
+  border-radius: 8px;
+  outline: 0;
+  background: #fff;
 }
 
 .search-box {
   display: flex;
   gap: 8px;
   align-items: center;
-  width: 260px;
+  width: min(260px, 100%);
   height: 34px;
   padding: 0 10px;
   border: 1px solid #d8dde6;
@@ -218,6 +316,125 @@ h2 {
   gap: 12px;
 }
 
+.audit-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid #dfe3ea;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.audit-panel-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.audit-panel-header span,
+.audit-card footer {
+  color: #6f7785;
+  font-size: 12px;
+}
+
+.audit-error {
+  padding: 9px 10px;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+}
+
+.audit-sections {
+  display: grid;
+  gap: 14px;
+}
+
+.audit-sections h3 {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin: 0 0 8px;
+  color: #374151;
+  font-size: 13px;
+}
+
+.audit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.audit-card {
+  display: grid;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid #dfe3ea;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.audit-card.warning {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.audit-card-header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.audit-card-header span {
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.audit-card p,
+.audit-card pre {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.45;
+}
+
+.audit-card .audit-rationale {
+  color: #6f7785;
+  font-size: 12px;
+}
+
+.audit-card pre {
+  max-height: 160px;
+  overflow: auto;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.audit-card footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.evidence-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  color: #1d4ed8;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: normal;
+}
+
 .entry-card,
 .source-card {
   min-height: 132px;
@@ -245,6 +462,18 @@ h2 {
   gap: 8px;
   align-items: flex-start;
   justify-content: space-between;
+}
+
+.entry-card-header strong {
+  min-width: 0;
+}
+
+.entry-badges {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
 }
 
 .entry-card p {
@@ -279,8 +508,18 @@ h2 {
   background: #ffedd5;
 }
 
+.topic-badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  color: #374151;
+  font-size: 11px;
+  border-radius: 999px;
+  background: #eef2ff;
+}
+
 .source-card {
   display: flex;
+  align-items: flex-start;
   gap: 11px;
   min-height: 96px;
 }
@@ -296,6 +535,11 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.source-open-button {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .empty-state {
@@ -360,6 +604,12 @@ h2 {
   margin-top: 14px;
 }
 
+.inspector-error {
+  margin-top: 10px;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
 .primary-button,
 .secondary-button {
   display: inline-flex;
@@ -380,6 +630,11 @@ h2 {
   color: #374151;
   border: 1px solid #d8dde6;
   background: #fff;
+}
+
+.secondary-button.compact {
+  min-height: 34px;
+  white-space: nowrap;
 }
 
 .secondary-button:disabled {
@@ -405,9 +660,25 @@ h2 {
   background: #fef2f2;
 }
 
+.fixture-banner {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 20;
+  padding: 8px 10px;
+  color: #7c2d12;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #fff7ed;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .dialog-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 40;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -431,6 +702,15 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
+}
+
+.dialog footer {
+  flex-wrap: wrap;
+}
+
+.dialog footer .primary-button,
+.dialog footer .secondary-button {
+  flex: 0 0 auto;
 }
 
 .dialog label {

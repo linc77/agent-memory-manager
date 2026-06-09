@@ -10,13 +10,16 @@ Agent Memory Manager is a macOS-first Tauri app for inspecting local Codex memor
 
 - Product design: `docs/superpowers/specs/2026-06-08-agent-memory-manager-design.md`
 - MVP plan: `docs/superpowers/plans/2026-06-08-agent-memory-manager-mvp.md`
-- Long-running goals: `docs/goals/`
-- Verification records: `docs/verification/`
-- Known issues: `docs/issues/`
+- Loop index: `docs/loop/README.md`
+- Long-running goals: `docs/loop/goals/`
+- Verification records: `docs/loop/verification/`
+- Known issues: `docs/loop/issues/`
 
 ## Current Status
 
-The MVP has a working scan, parse, risk flag, source excerpt, correction draft flow, and full-body search coverage. The `Python/Rust` search gap is fixed and verified in `docs/verification/2026-06-08-search-body-fix.md`.
+The app can scan local Codex memory, separate current memory from activity logs, search across entries and sources, inspect source excerpts, run a read-only Codex Audit, and write only confirmed correction notes under `extensions/ad_hoc/notes`.
+
+The active overnight worktree is tracked in `docs/loop/goals/2026-06-09-overnight-optimization.md`; daytime review instructions and evidence are in `docs/loop/verification/2026-06-09-overnight-handoff.md`.
 
 Use `pnpm verify` as the baseline automated check before claiming progress.
 

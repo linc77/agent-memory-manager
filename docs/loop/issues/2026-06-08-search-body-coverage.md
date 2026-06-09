@@ -2,7 +2,7 @@
 
 ## Status
 
-Fixed on 2026-06-08. See `docs/verification/2026-06-08-search-body-fix.md`.
+Fixed on 2026-06-08. See `docs/loop/verification/2026-06-08-search-body-fix.md`.
 
 ## Evidence
 

@@ -30,15 +30,15 @@ Passed with caveats.
 
 The fresh agent identified:
 
-- product objective from `README.md` and `docs/goals/agent-first-harness.md`
+- product objective from `README.md` and `docs/loop/goals/agent-first-harness.md`
 - MVP and search-fix status from `docs/README.md`, verification records, and source files
 - baseline verification command from `AGENTS.md`, `package.json`, and `scripts/verify.sh`
-- evidence locations under `docs/goals/`, `docs/issues/`, and `docs/verification/`
+- evidence locations under `docs/loop/goals/`, `docs/loop/issues/`, and `docs/loop/verification/`
 - next smallest action: update stale handoff status in `docs/README.md`
 
 ## Baseline Gap Found
 
-`docs/README.md` still described the `Python/Rust` search body coverage gap as current, while `docs/issues/2026-06-08-search-body-coverage.md` and `docs/verification/2026-06-08-search-body-fix.md` marked it fixed.
+`docs/README.md` still described the `Python/Rust` search body coverage gap as current, while `docs/loop/issues/2026-06-08-search-body-coverage.md` and `docs/loop/verification/2026-06-08-search-body-fix.md` marked it fixed.
 
 Resolution: updated `docs/README.md` to describe full-body search coverage as fixed and verified.
 

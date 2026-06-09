@@ -74,6 +74,7 @@ mod tests {
             MemoryEntry {
                 id: "old".to_string(),
                 topic: MemoryTopic::Profile,
+                related_topics: Vec::new(),
                 title: "Old profile".to_string(),
                 summary: "Java / Spring Boot full-stack developer".to_string(),
                 search_text: "Java / Spring Boot full-stack developer".to_string(),
@@ -84,6 +85,7 @@ mod tests {
             MemoryEntry {
                 id: "new".to_string(),
                 topic: MemoryTopic::Overrides,
+                related_topics: vec![MemoryTopic::Profile],
                 title: "Memory update request".to_string(),
                 summary: "The user's primary technical stack has shifted to Python/Rust."
                     .to_string(),
@@ -97,8 +99,6 @@ mod tests {
 
         let risks = detect_risks(&entries);
 
-        assert!(risks
-            .iter()
-            .any(|risk| risk.id == "profile-stack-conflict"));
+        assert!(risks.iter().any(|risk| risk.id == "profile-stack-conflict"));
     }
 }

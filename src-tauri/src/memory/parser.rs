@@ -8,6 +8,7 @@ pub enum MemoryTopic {
     Rules,
     Tools,
     Writing,
+    ActivityLog,
     Overrides,
     Sources,
     StaleRisks,
@@ -18,6 +19,7 @@ pub enum MemoryTopic {
 pub struct MemoryEntry {
     pub id: String,
     pub topic: MemoryTopic,
+    pub related_topics: Vec<MemoryTopic>,
     pub title: String,
     pub summary: String,
     pub search_text: String,
@@ -34,7 +36,7 @@ pub fn parse_entries(relative_path: &str, text: &str) -> Vec<MemoryEntry> {
 
     for (idx, line) in text.lines().enumerate() {
         let line_no = idx + 1;
-        if line.starts_with("# ") || line.starts_with("## ") {
+        if should_split_heading(relative_path, line) {
             flush_entry(
                 relative_path,
                 &current_title,
@@ -61,6 +63,13 @@ pub fn parse_entries(relative_path: &str, text: &str) -> Vec<MemoryEntry> {
     entries
 }
 
+fn should_split_heading(relative_path: &str, line: &str) -> bool {
+    line.starts_with("# ")
+        || line.starts_with("## ")
+        || (relative_path == "memory_summary.md"
+            && (line.starts_with("### ") || line.starts_with("#### ")))
+}
+
 fn flush_entry(
     relative_path: &str,
     title: &str,
@@ -70,6 +79,13 @@ fn flush_entry(
     out: &mut Vec<MemoryEntry>,
 ) {
     let body = lines.join("\n");
+    let has_content = body
+        .lines()
+        .map(str::trim)
+        .any(|line| !line.is_empty() && !line.starts_with('#'));
+    if !has_content {
+        return;
+    }
     let summary = body
         .lines()
         .map(str::trim)
@@ -87,10 +103,17 @@ fn flush_entry(
     if summary.trim().is_empty() {
         return;
     }
+    if is_version_preamble(title, &summary) {
+        return;
+    }
+
+    let topic = infer_topic(relative_path, title, &body);
+    let related_topics = infer_related_topics(&topic, title, &body);
 
     out.push(MemoryEntry {
         id: format!("{}:{}-{}", relative_path, start_line, end_line),
-        topic: infer_topic(relative_path, title, &body),
+        topic,
+        related_topics,
         title: title.to_string(),
         summary,
         search_text: body,
@@ -100,38 +123,75 @@ fn flush_entry(
     });
 }
 
+fn is_version_preamble(title: &str, summary: &str) -> bool {
+    title == "Document"
+        && summary
+            .strip_prefix('v')
+            .is_some_and(|version| version.chars().all(|ch| ch.is_ascii_digit()))
+}
+
+fn infer_related_topics(primary_topic: &MemoryTopic, title: &str, body: &str) -> Vec<MemoryTopic> {
+    if primary_topic != &MemoryTopic::Overrides {
+        return Vec::new();
+    }
+
+    infer_content_topics(title, body)
+}
+
 fn infer_topic(path: &str, title: &str, body: &str) -> MemoryTopic {
     let text = format!("{} {} {}", path, title, body).to_lowercase();
-    if path.contains("ad_hoc/notes") || text.contains("memory update request") {
+    if path == "raw_memories.md"
+        || path.contains("extensions/chronicle/resources")
+        || path.contains("rollout_summaries/")
+    {
+        MemoryTopic::ActivityLog
+    } else if path.contains("ad_hoc/notes") || text.contains("memory update request") {
         MemoryTopic::Overrides
-    } else if text.contains("user profile")
+    } else {
+        infer_content_topics(title, body)
+            .into_iter()
+            .next()
+            .unwrap_or(MemoryTopic::Sources)
+    }
+}
+
+fn infer_content_topics(title: &str, body: &str) -> Vec<MemoryTopic> {
+    let text = format!("{} {}", title, body).to_lowercase();
+    let mut topics = Vec::new();
+
+    if text.contains("user profile")
         || text.contains("技术栈")
         || text.contains("primary technical stack")
     {
-        MemoryTopic::Profile
-    } else if text.contains("project")
+        topics.push(MemoryTopic::Profile);
+    }
+    if text.contains("project")
+        || text.contains("agent-memory-manager")
         || text.contains("beebotos")
         || text.contains("sub2api")
         || text.contains("dilidili")
     {
-        MemoryTopic::Projects
-    } else if text.contains("preference")
+        topics.push(MemoryTopic::Projects);
+    }
+    if text.contains("preference")
         || text.contains("规则")
         || text.contains("中文输出")
         || text.contains("tool")
     {
-        MemoryTopic::Rules
-    } else if text.contains("codex")
+        topics.push(MemoryTopic::Rules);
+    }
+    if text.contains("codex")
         || text.contains("mcp")
         || text.contains("skills")
         || text.contains("openai")
     {
-        MemoryTopic::Tools
-    } else if text.contains("writing") || text.contains("公众号") || text.contains("写作") {
-        MemoryTopic::Writing
-    } else {
-        MemoryTopic::Sources
+        topics.push(MemoryTopic::Tools);
     }
+    if text.contains("writing") || text.contains("公众号") || text.contains("写作") {
+        topics.push(MemoryTopic::Writing);
+    }
+
+    topics
 }
 
 #[cfg(test)]
@@ -145,10 +205,15 @@ mod tests {
             "Memory update request:\n\n- The user's primary technical stack has shifted to Python/Rust.\n",
         );
 
-        assert!(entries.iter().any(|entry| entry.topic == MemoryTopic::Overrides));
+        assert!(entries
+            .iter()
+            .any(|entry| entry.topic == MemoryTopic::Overrides));
         assert!(entries
             .iter()
             .any(|entry| entry.summary.contains("Python/Rust")));
+        assert!(entries
+            .iter()
+            .any(|entry| entry.related_topics.contains(&MemoryTopic::Profile)));
     }
 
     #[test]
@@ -162,5 +227,86 @@ mod tests {
 
         assert!(entry.summary.contains("dilidili"));
         assert!(entry.search_text.contains("Python/Rust"));
+        assert!(entry.related_topics.contains(&MemoryTopic::Projects));
+        assert!(entry.related_topics.contains(&MemoryTopic::Profile));
+    }
+
+    #[test]
+    fn keeps_chronicle_activity_out_of_profile() {
+        let entries = parse_entries(
+            "extensions/chronicle/resources/2026-06-02T09-09-00-10min-memory-summary.md",
+            "## Memory summary\n\nThe user is reviewing BeeBotOS and current 技术栈 context in a 10 minute recording.\n",
+        );
+
+        assert!(entries
+            .iter()
+            .all(|entry| entry.topic == MemoryTopic::ActivityLog));
+    }
+
+    #[test]
+    fn keeps_rollout_history_out_of_projects() {
+        let entries = parse_entries(
+            "rollout_summaries/2026-06-02T09-09-00-example.md",
+            "## Task Group\n\nThe user reviewed the BeeBotOS project during this past session.\n",
+        );
+
+        assert!(entries
+            .iter()
+            .all(|entry| entry.topic == MemoryTopic::ActivityLog));
+    }
+
+    #[test]
+    fn keeps_raw_memories_out_of_current_topics() {
+        let entries = parse_entries(
+            "raw_memories.md",
+            "# Raw Memories\n\n## Thread `example`\n\n### Task 1: Review BeeBotOS and Codex memory\n\nThe user discussed project preferences and 技术栈 history.\n",
+        );
+
+        assert!(entries
+            .iter()
+            .all(|entry| entry.topic == MemoryTopic::ActivityLog));
+    }
+
+    #[test]
+    fn keeps_historical_memory_update_text_out_of_corrections() {
+        let entries = parse_entries(
+            "raw_memories.md",
+            "# Raw Memories\n\n## Thread `example`\n\nMemory update request:\n\n- The user discussed a past correction workflow.\n",
+        );
+
+        assert!(entries
+            .iter()
+            .all(|entry| entry.topic == MemoryTopic::ActivityLog));
+    }
+
+    #[test]
+    fn skips_memory_summary_version_preamble() {
+        let entries = parse_entries(
+            "memory_summary.md",
+            "v1\n\n## User Profile\n\nThe user's current technical stack is Python/Rust.\n",
+        );
+
+        assert!(entries.iter().all(|entry| entry.summary != "v1"));
+        assert!(entries.iter().any(|entry| entry.title == "User Profile"));
+    }
+
+    #[test]
+    fn splits_memory_summary_project_sections() {
+        let entries = parse_entries(
+            "memory_summary.md",
+            "## What's in Memory\n\n### /Users/qsh/Documents/work/agent-memory-manager\n\n#### 2026-06-08\n\n- Codex memory manager MVP: agent-memory-manager, Knowledge Board, safe write\n  - desc: Iterate the memory manager UI.\n",
+        );
+
+        assert!(!entries
+            .iter()
+            .any(|entry| entry.title == "What's in Memory"));
+        assert!(!entries
+            .iter()
+            .any(|entry| entry.title == "/Users/qsh/Documents/work/agent-memory-manager"));
+        assert!(entries.iter().any(|entry| {
+            entry.title == "2026-06-08"
+                && entry.summary.contains("Codex memory manager MVP")
+                && entry.topic == MemoryTopic::Projects
+        }));
     }
 }

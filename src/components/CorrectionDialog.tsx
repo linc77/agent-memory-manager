@@ -5,11 +5,13 @@ export function CorrectionDialog({
   draft,
   isWriting,
   onCancel,
+  onContentChange,
   onConfirm,
 }: {
   draft: CorrectionDraft;
   isWriting: boolean;
   onCancel: () => void;
+  onContentChange: (content: string) => void;
   onConfirm: () => void;
 }) {
   return (
@@ -32,7 +34,11 @@ export function CorrectionDialog({
 
         <label>
           Content
-          <textarea readOnly rows={10} value={draft.content} />
+          <textarea
+            onChange={(event) => onContentChange(event.target.value)}
+            rows={10}
+            value={draft.content}
+          />
         </label>
 
         <footer>
