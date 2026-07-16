@@ -1,6 +1,6 @@
 appId: com.linc.agent-memory-manager
 productName: Agent Memory Manager
-artifactName: ${productName}_${version}_${arch}.${ext}
+artifactName: Agent-Memory-Manager_${version}_${arch}.${ext}
 directories:
   output: release
 files:
@@ -17,13 +17,18 @@ mac:
       arch: arm64
   category: public.app-category.developer-tools
   icon: build/icons/icon.icns
-  identity: null
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: true
+  electronUpdaterCompatibility: ">=2.16"
   minimumSystemVersion: "12.0"
 win:
   target:
     - target: nsis
       arch: x64
   icon: build/icons/icon.ico
+  electronUpdaterCompatibility: ">=2.16"
 nsis:
   oneClick: false
   perMachine: false

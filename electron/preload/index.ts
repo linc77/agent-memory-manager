@@ -4,9 +4,10 @@ import { channels } from "../shared/channels";
 
 const api: AmmDesktopApi = {
   app: {
-    getVersion: () => ipcRenderer.invoke(channels.appVersion),
+    getUpdateState: () => ipcRenderer.invoke(channels.getAppUpdateState),
     checkForUpdates: () => ipcRenderer.invoke(channels.checkAppUpdate),
-    openReleasePage: () => ipcRenderer.invoke(channels.openReleasePage),
+    downloadUpdate: () => ipcRenderer.invoke(channels.downloadAppUpdate),
+    installUpdate: () => ipcRenderer.invoke(channels.installAppUpdate),
   },
   memory: {
     scan: (rootOverride = null) => ipcRenderer.invoke(channels.scanMemories, { rootOverride }),

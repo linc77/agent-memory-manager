@@ -6,7 +6,7 @@ on:
       tag:
         description: Existing draft release tag
         required: true
-        default: v0.2.0
+        default: v0.3.0
 
 permissions:
   contents: write
@@ -29,8 +29,10 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            command: pnpm exec electron-builder --mac dmg zip --arm64 --publish never
+            update_platform: mac
+            command: pnpm exec electron-builder --mac dmg zip --arm64 --publish never -c.forceCodeSigning=true
           - platform: windows-latest
+            update_platform: win
             command: pnpm exec electron-builder --win nsis --x64 --publish never
     runs-on: ${{ matrix.platform }}
     steps:
@@ -52,10 +54,45 @@ jobs:
       - name: Verify
         run: pnpm verify
 
+      - name: Require macOS signing credentials
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required GitHub Actions secret: $name" >&2
+              exit 1
+            fi
+          done
+
       - name: Build installer
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          CSC_LINK: ${{ matrix.platform == 'macos-latest' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'macos-latest' && secrets.CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
         run: ${{ matrix.command }}
+
+      - name: Verify macOS signature and notarization
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          app_path=$(find release -type d -name '*.app' -print -quit)
+          test -n "$app_path"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          spctl --assess --type execute --verbose=4 "$app_path"
+          xcrun stapler validate "$app_path"
+
+      - name: Verify update assets
+        shell: bash
+        run: pnpm verify:update-assets --dir release --platform "${{ matrix.update_platform }}" --version "${{ inputs.tag }}"
 
       - name: Upload release assets
         shell: bash
@@ -64,4 +101,13 @@ jobs:
         run: |
           while IFS= read -r -d '' asset; do
             gh release upload "${{ inputs.tag }}" "$asset" --clobber
-          done < <(find release -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' \) -print0)
+          done < <(find release -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' -o -name '*.blockmap' -o -name 'latest*.yml' \) -print0)
+
+  publish-release:
+    needs: desktop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish verified release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ inputs.tag }}" --repo "${{ github.repository }}" --draft=false --latest

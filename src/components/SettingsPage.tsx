@@ -15,10 +15,12 @@ export function SettingsPage({
   onLocaleChange: (locale: Locale) => void;
   uiText: UiText;
 }) {
-  const { autoCheck, checkForUpdates, downloadUpdate, setAutoCheck, state } = controller;
-  const busy = state.phase === "checking";
-  const canInstall =
+  const { autoCheck, checkForUpdates, downloadUpdate, installUpdate, setAutoCheck, state } = controller;
+  const updaterEnabled = nativeEnabled && state.supported;
+  const busy = ["checking", "downloading", "installing"].includes(state.phase);
+  const canDownload =
     Boolean(state.update) && (state.phase === "available" || state.phase === "error");
+  const canInstall = state.phase === "downloaded";
 
   return (
     <main className="settings-page">
@@ -86,13 +88,13 @@ export function SettingsPage({
             </span>
             <input
               checked={autoCheck}
-              disabled={!nativeEnabled}
+              disabled={!updaterEnabled}
               onChange={(event) => setAutoCheck(event.target.checked)}
               type="checkbox"
             />
           </label>
 
-          {!nativeEnabled ? (
+          {!updaterEnabled ? (
             <p className="settings-status muted">{uiText.settings.desktopOnly}</p>
           ) : (
             <>
@@ -101,6 +103,18 @@ export function SettingsPage({
               )}
               {state.phase === "upToDate" && (
                 <p className="settings-status success">{uiText.settings.upToDate}</p>
+              )}
+              {state.phase === "downloading" && (
+                <div className="settings-progress">
+                  <strong>{uiText.settings.downloading(state.progress)}</strong>
+                  <progress max="100" value={state.progress ?? 0} />
+                </div>
+              )}
+              {state.phase === "downloaded" && (
+                <p className="settings-status success">{uiText.settings.downloaded}</p>
+              )}
+              {state.phase === "installing" && (
+                <p className="settings-status">{uiText.settings.installing}</p>
               )}
               {state.update && (
                 <div className="settings-update-card">
@@ -120,20 +134,29 @@ export function SettingsPage({
               <div className="settings-actions">
                 <button
                   className="secondary-button"
-                  disabled={busy}
+                  disabled={busy || canInstall}
                   onClick={() => void checkForUpdates()}
                   type="button"
                 >
                   <RefreshCw aria-hidden="true" size={15} />
                   {state.phase === "checking" ? uiText.settings.checking : uiText.settings.check}
                 </button>
-                {canInstall && (
+                {canDownload && (
                   <button
                     className="primary-button"
                     onClick={() => void downloadUpdate()}
                     type="button"
                   >
-                    {uiText.settings.install}
+                    {uiText.settings.download}
+                  </button>
+                )}
+                {canInstall && (
+                  <button
+                    className="primary-button"
+                    onClick={() => void installUpdate()}
+                    type="button"
+                  >
+                    {uiText.settings.restartAndInstall}
                   </button>
                 )}
               </div>

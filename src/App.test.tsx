@@ -19,9 +19,24 @@ Object.defineProperty(window, "amm", {
   configurable: true,
   value: {
     app: {
-      getVersion: () => Promise.resolve("0.2.0"),
-      checkForUpdates: () => Promise.resolve(null),
-      openReleasePage: () => Promise.resolve(),
+      getUpdateState: () => Promise.resolve({
+        supported: true,
+        phase: "idle" as const,
+        currentVersion: "0.2.0",
+        update: null,
+        progress: null,
+        error: null,
+      }),
+      checkForUpdates: () => Promise.resolve({
+        supported: true,
+        phase: "upToDate" as const,
+        currentVersion: "0.2.0",
+        update: null,
+        progress: null,
+        error: null,
+      }),
+      downloadUpdate: () => Promise.reject(new Error("No update")),
+      installUpdate: () => Promise.reject(new Error("No update")),
     },
     memory: {
       scan: (rootOverride: string | null) => invokeMock("scan_memories", { rootOverride }),

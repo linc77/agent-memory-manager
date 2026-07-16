@@ -10,28 +10,68 @@ export function useAppUpdater({ enabled }: { enabled: boolean }) {
   const [state, dispatch] = useReducer(appUpdateReducer, initialAppUpdateState);
   const [autoCheck, setAutoCheckState] = useState(() => readAutoCheckUpdates());
   const checkSequenceRef = useRef(0);
+  const pollingSequenceRef = useRef(0);
   const startupCheckStartedRef = useRef(false);
+  const pollingRef = useRef<number | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current !== null) {
+      window.clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  const syncState = useCallback(async () => {
+    const state = await window.amm.app.getUpdateState();
+    dispatch({ type: "stateReceived", state });
+    return state;
+  }, []);
 
   const checkForUpdates = useCallback(async () => {
     if (!enabled) return;
     const sequence = ++checkSequenceRef.current;
     dispatch({ type: "checkStarted" });
     try {
-      const update = await window.amm.app.checkForUpdates();
+      const state = await window.amm.app.checkForUpdates();
       if (sequence !== checkSequenceRef.current) return;
-      dispatch(update ? { type: "updateAvailable", update } : { type: "upToDate" });
+      dispatch({ type: "stateReceived", state });
     } catch (error) {
       if (sequence === checkSequenceRef.current) dispatch({ type: "failed", error: String(error) });
     }
   }, [enabled]);
 
   const downloadUpdate = useCallback(async () => {
-    if (!state.update) {
-      dispatch({ type: "failed", error: "No pending update is available." });
-      return;
+    dispatch({ type: "downloadStarted" });
+    stopPolling();
+    const pollingSequence = ++pollingSequenceRef.current;
+    pollingRef.current = window.setInterval(() => {
+      void window.amm.app.getUpdateState()
+        .then((nextState) => {
+          if (pollingSequence === pollingSequenceRef.current) {
+            dispatch({ type: "stateReceived", state: nextState });
+          }
+        })
+        .catch(() => undefined);
+    }, 250);
+    try {
+      const nextState = await window.amm.app.downloadUpdate();
+      dispatch({ type: "stateReceived", state: nextState });
+    } catch (error) {
+      dispatch({ type: "failed", error: String(error) });
+    } finally {
+      pollingSequenceRef.current += 1;
+      stopPolling();
     }
-    await window.amm.app.openReleasePage();
-  }, [state.update]);
+  }, [stopPolling]);
+
+  const installUpdate = useCallback(async () => {
+    dispatch({ type: "installStarted" });
+    try {
+      await window.amm.app.installUpdate();
+    } catch (error) {
+      dispatch({ type: "failed", error: String(error) });
+    }
+  }, []);
 
   const setAutoCheck = useCallback((nextValue: boolean) => {
     setAutoCheckState(nextValue);
@@ -40,10 +80,9 @@ export function useAppUpdater({ enabled }: { enabled: boolean }) {
 
   useEffect(() => {
     if (!enabled) return;
-    void window.amm.app.getVersion()
-      .then((version) => dispatch({ type: "currentVersionLoaded", version }))
+    void syncState()
       .catch((error) => dispatch({ type: "failed", error: String(error) }));
-  }, [enabled]);
+  }, [enabled, syncState]);
 
   useEffect(() => {
     if (!enabled || !autoCheck || startupCheckStartedRef.current) return;
@@ -53,9 +92,11 @@ export function useAppUpdater({ enabled }: { enabled: boolean }) {
 
   useEffect(() => () => {
     checkSequenceRef.current += 1;
-  }, []);
+    pollingSequenceRef.current += 1;
+    stopPolling();
+  }, [stopPolling]);
 
-  return { state, autoCheck, checkForUpdates, downloadUpdate, setAutoCheck };
+  return { state, autoCheck, checkForUpdates, downloadUpdate, installUpdate, setAutoCheck };
 }
 
 export type AppUpdaterController = ReturnType<typeof useAppUpdater>;

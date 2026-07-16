@@ -159,9 +159,10 @@ export interface UiText {
     upToDate: string;
     available: (version: string) => string;
     downloading: (progress: number | null) => string;
+    downloaded: string;
+    download: string;
+    restartAndInstall: string;
     installing: string;
-    installed: string;
-    install: string;
     error: string;
   };
   board: {
@@ -465,7 +466,7 @@ const zhCN: UiText = {
     language: "界面语言",
     languageHint: "选择 Agent Memory Manager 的显示语言。",
     appUpdate: "应用更新",
-    appUpdateHint: "检查 GitHub Releases，并前往发布页下载新版本。",
+    appUpdateHint: "检查 GitHub Releases，并在应用内下载、安装新版本。",
     currentVersion: "当前版本",
     unknownVersion: "仅桌面版可读取",
     autoCheck: "启动时自动检查",
@@ -477,9 +478,10 @@ const zhCN: UiText = {
     available: (version) => `发现新版本 v${version}`,
     downloading: (progress) =>
       progress === null ? "正在下载安装包..." : `正在下载安装包... ${progress}%`,
-    installing: "下载完成，正在安装...",
-    installed: "安装完成，正在重新启动...",
-    install: "前往 GitHub 下载",
+    downloaded: "更新已下载，重启后完成安装。",
+    download: "下载更新",
+    restartAndInstall: "重启并安装",
+    installing: "正在重启并安装...",
     error: "更新失败",
   },
   board: {
@@ -766,7 +768,7 @@ const enUS: UiText = {
     language: "Interface language",
     languageHint: "Choose the display language for Agent Memory Manager.",
     appUpdate: "Application update",
-    appUpdateHint: "Check GitHub Releases and open the release page to download updates.",
+    appUpdateHint: "Check GitHub Releases, then download and install updates in the app.",
     currentVersion: "Current version",
     unknownVersion: "Available in the desktop app",
     autoCheck: "Automatically check on startup",
@@ -778,9 +780,10 @@ const enUS: UiText = {
     available: (version) => `Version ${version} is available`,
     downloading: (progress) =>
       progress === null ? "Downloading update..." : `Downloading update... ${progress}%`,
-    installing: "Download complete. Installing...",
-    installed: "Installation complete. Relaunching...",
-    install: "Download from GitHub",
+    downloaded: "The update is downloaded and ready to install after restart.",
+    download: "Download update",
+    restartAndInstall: "Restart and install",
+    installing: "Restarting to install...",
     error: "Update failed",
   },
   board: {

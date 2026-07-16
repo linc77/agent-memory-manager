@@ -1,5 +1,6 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { app, ipcMain, shell } from "electron";
+import electronUpdater from "electron-updater";
 import type { ZodType } from "zod";
 import { channels } from "../../shared/channels";
 import {
@@ -16,6 +17,7 @@ import {
   writeCorrectionSchema,
 } from "../../shared/validation";
 import { createAgentConfigService, defaultAgentConfigPaths } from "../services/agentConfig";
+import { createAppUpdaterService, type AppUpdaterService } from "../services/appUpdater";
 import { cancelCodexAudit, getCodexAudit, runCodexAudit, startCodexAudit } from "../services/audit";
 import { ElectronSecretStore } from "../services/electronSecretStore";
 import { loadAgentMemorySnapshot, loadMemoryProfile, scanMemories } from "../services/memory";
@@ -31,32 +33,16 @@ import { loadMcpInventory } from "../services/mcp";
 import { loadSkillInventory } from "../services/skills";
 import { isTrustedRendererUrl } from "../windowPolicy";
 
-const releasePage = "https://github.com/linc77/agent-memory-manager/releases";
+const { autoUpdater } = electronUpdater;
+let appUpdater: AppUpdaterService | undefined;
 
-function versionParts(value: string) {
-  return value.replace(/^v/, "").split(".").map((part) => Number.parseInt(part, 10) || 0);
-}
-
-function isNewerVersion(candidate: string, current: string) {
-  const left = versionParts(candidate);
-  const right = versionParts(current);
-  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
-    if ((left[index] ?? 0) !== (right[index] ?? 0)) return (left[index] ?? 0) > (right[index] ?? 0);
-  }
-  return false;
-}
-
-async function checkAppUpdate() {
-  const currentVersion = app.getVersion();
-  const response = await fetch("https://api.github.com/repos/linc77/agent-memory-manager/releases/latest", {
-    headers: { Accept: "application/vnd.github+json", "User-Agent": "Agent-Memory-Manager" },
-    signal: AbortSignal.timeout(15_000),
+function getAppUpdater() {
+  appUpdater ??= createAppUpdaterService({
+    currentVersion: app.getVersion(),
+    isPackaged: app.isPackaged,
+    updater: autoUpdater,
   });
-  if (!response.ok) throw new Error(`GitHub update check failed with status ${response.status}`);
-  const release = await response.json() as { tag_name?: string; published_at?: string; body?: string };
-  const version = release.tag_name?.replace(/^v/, "");
-  if (!version || !isNewerVersion(version, currentVersion)) return null;
-  return { currentVersion, version, date: release.published_at, body: release.body };
+  return appUpdater;
 }
 
 function assertTrustedSender(
@@ -88,17 +74,21 @@ function handle<Input, Output>(
 
 export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: string) {
   const agentConfig = createAgentConfigService(defaultAgentConfigPaths(), new ElectronSecretStore());
-  ipcMain.handle(channels.appVersion, (event) => {
+  ipcMain.handle(channels.getAppUpdateState, (event) => {
     assertTrustedSender(event, window, developmentOrigin);
-    return app.getVersion();
+    return getAppUpdater().getState();
   });
   ipcMain.handle(channels.checkAppUpdate, (event) => {
     assertTrustedSender(event, window, developmentOrigin);
-    return checkAppUpdate();
+    return getAppUpdater().checkForUpdates();
   });
-  ipcMain.handle(channels.openReleasePage, async (event) => {
+  ipcMain.handle(channels.downloadAppUpdate, (event) => {
     assertTrustedSender(event, window, developmentOrigin);
-    await shell.openExternal(releasePage);
+    return getAppUpdater().downloadUpdate();
+  });
+  ipcMain.handle(channels.installAppUpdate, (event) => {
+    assertTrustedSender(event, window, developmentOrigin);
+    return getAppUpdater().installUpdate();
   });
   handle(channels.scanMemories, rootOverrideSchema, window, developmentOrigin, ({ rootOverride }) =>
     scanMemories(rootOverride));

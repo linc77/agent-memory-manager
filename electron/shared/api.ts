@@ -14,13 +14,14 @@ import type {
   ScanResult,
   SkillInventory,
 } from "../../src/lib/types";
-import type { AppUpdateInfo } from "../../src/lib/appUpdate";
+import type { AppUpdateState } from "../../src/lib/appUpdate";
 
 export interface AmmDesktopApi {
   app: {
-    getVersion(): Promise<string>;
-    checkForUpdates(): Promise<AppUpdateInfo | null>;
-    openReleasePage(): Promise<void>;
+    getUpdateState(): Promise<AppUpdateState>;
+    checkForUpdates(): Promise<AppUpdateState>;
+    downloadUpdate(): Promise<AppUpdateState>;
+    installUpdate(): Promise<void>;
   };
   memory: {
     scan(rootOverride?: string | null): Promise<ScanResult>;

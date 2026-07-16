@@ -5,6 +5,10 @@ export type AppUpdatePhase =
   | "checking"
   | "upToDate"
   | "available"
+  | "downloading"
+  | "downloaded"
+  | "installing"
+  | "unavailable"
   | "error";
 
 export interface AppUpdateInfo {
@@ -15,23 +19,27 @@ export interface AppUpdateInfo {
 }
 
 export interface AppUpdateState {
+  supported: boolean;
   phase: AppUpdatePhase;
   currentVersion: string | null;
   update: AppUpdateInfo | null;
+  progress: number | null;
   error: string | null;
 }
 
 export type AppUpdateAction =
-  | { type: "currentVersionLoaded"; version: string }
+  | { type: "stateReceived"; state: AppUpdateState }
   | { type: "checkStarted" }
-  | { type: "upToDate" }
-  | { type: "updateAvailable"; update: AppUpdateInfo }
+  | { type: "downloadStarted" }
+  | { type: "installStarted" }
   | { type: "failed"; error: string };
 
 export const initialAppUpdateState: AppUpdateState = {
+  supported: false,
   phase: "idle",
   currentVersion: null,
   update: null,
+  progress: null,
   error: null,
 };
 
@@ -40,25 +48,24 @@ export function appUpdateReducer(
   action: AppUpdateAction,
 ): AppUpdateState {
   switch (action.type) {
-    case "currentVersionLoaded":
-      return { ...state, currentVersion: action.version };
+    case "stateReceived":
+      return action.state;
     case "checkStarted":
       return {
         ...state,
         phase: "checking",
-        update: null,
+        progress: null,
         error: null,
       };
-    case "upToDate":
-      return { ...state, phase: "upToDate", update: null, error: null };
-    case "updateAvailable":
+    case "downloadStarted":
       return {
         ...state,
-        phase: "available",
-        currentVersion: action.update.currentVersion,
-        update: action.update,
+        phase: "downloading",
+        progress: 0,
         error: null,
       };
+    case "installStarted":
+      return { ...state, phase: "installing", error: null };
     case "failed":
       return { ...state, phase: "error", error: action.error };
   }

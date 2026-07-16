@@ -11,7 +11,7 @@ Installers are published on [GitHub Releases](https://github.com/linc77/agent-me
 - macOS Apple Silicon: `.dmg`
 - Windows x64: NSIS `.exe`
 
-The first Electron builds are unsigned. macOS Gatekeeper or Windows SmartScreen may require explicit confirmation before opening them. The app can check for new GitHub releases from Settings and opens the release page for manual download.
+The first Electron builds (`v0.2.0` and `v0.2.1`) are unsigned and require one final manual upgrade. The first signed updater-enabled release and later versions can check, download, install, and restart from Settings. macOS updater releases require Developer ID signing and notarization; release CI fails instead of publishing an unsigned macOS updater.
 
 ## Development
 

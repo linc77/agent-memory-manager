@@ -1,7 +1,8 @@
 export const channels = {
-  appVersion: "app:get-version",
+  getAppUpdateState: "app:get-update-state",
   checkAppUpdate: "app:check-update",
-  openReleasePage: "app:open-release-page",
+  downloadAppUpdate: "app:download-update",
+  installAppUpdate: "app:install-update",
   scanMemories: "memory:scan",
   generateMemoryProfile: "memory:generate-profile",
   startMemoryProfileGeneration: "memory:start-profile-generation",
