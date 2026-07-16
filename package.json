@@ -1,7 +1,7 @@
 {
   "name": "agent-memory-manager",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,12 +13,15 @@
     "profile:generate:codex": "cargo run --manifest-path src-tauri/Cargo.toml --bin amm-profile-generate -- --require-codex",
     "profile:verify": "node scripts/verify-profile-cache.mjs",
     "profile:verify:optional": "node scripts/verify-profile-cache.mjs --optional",
+    "updater:verify": "node scripts/verify-updater-json.mjs",
     "tauri": "tauri",
     "verify": "bash scripts/verify.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "@tanstack/react-query": "^5.90.12",
     "codemirror": "^6.0.2",
     "@codemirror/lang-markdown": "^6.5.0",

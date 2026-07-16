@@ -42,8 +42,10 @@ export function Sidebar({
   uiText,
   onLocaleChange,
   onManageAgent,
+  onOpenSettings,
   onSelectAgent,
   onSelectTopic,
+  updateAvailable,
 }: {
   activeTopic: MemoryView;
   locale: Locale;
@@ -51,8 +53,10 @@ export function Sidebar({
   uiText: UiText;
   onLocaleChange: (locale: Locale) => void;
   onManageAgent: () => void;
+  onOpenSettings: () => void;
   onSelectAgent: (agent: AgentKind) => void;
   onSelectTopic: (topic: MemoryView) => void;
+  updateAvailable: boolean;
 }) {
   const topics = navItems(uiText, selectedAgent);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
@@ -187,6 +191,13 @@ export function Sidebar({
       </nav>
 
       <div className="sidebar-footer">
+        <button className="settings-button" onClick={onOpenSettings} type="button">
+          <Settings2 aria-hidden="true" size={16} />
+          <span>{uiText.sidebar.settings}</span>
+          {updateAvailable && (
+            <span className="settings-update-badge">{uiText.sidebar.updateAvailable}</span>
+          )}
+        </button>
         <div className="language-switch" role="group" aria-label={uiText.sidebar.languageLabel}>
           {localeOptions.map((option) => (
             <button

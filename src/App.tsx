@@ -7,6 +7,7 @@ import {
   type PointerEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isTauri } from "@tauri-apps/api/core";
 import {
   cancelCodexAudit,
   cancelMemoryProfileGeneration,
@@ -58,6 +59,8 @@ import { KnowledgeBoard } from "./components/KnowledgeBoard";
 import { McpManager } from "./components/McpManager";
 import { Sidebar } from "./components/Sidebar";
 import { SkillManager } from "./components/SkillManager";
+import { SettingsDialog } from "./components/SettingsDialog";
+import { useAppUpdater } from "./hooks/useAppUpdater";
 import "./App.css";
 
 interface AuditRequest {
@@ -67,9 +70,12 @@ interface AuditRequest {
 function App() {
   const queryClient = useQueryClient();
   const fixtureMode = isFixtureMode();
+  const nativeUpdaterEnabled = !fixtureMode && isTauri();
+  const appUpdater = useAppUpdater({ enabled: nativeUpdaterEnabled });
   const [locale, setLocale] = useState<Locale>(() => readStoredLocale());
   const uiText = useMemo(() => getUiText(locale), [locale]);
   const [selectedAgent, setSelectedAgent] = useState<AgentKind>(() => readStoredAgent());
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeTopic, setActiveTopic] = useState<MemoryView>("overview");
   const [query, setQuery] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | undefined>();
@@ -459,11 +465,15 @@ function App() {
           setActiveTopic("agentManager");
           setSelectedEntryId(undefined);
         }}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onSelectAgent={changeAgent}
         onSelectTopic={(topic) => {
           setActiveTopic(topic);
           setSelectedEntryId(undefined);
         }}
+        updateAvailable={
+          Boolean(appUpdater.state.update) && appUpdater.state.phase !== "installed"
+        }
       />
 
       {renderPaneResizer("left")}
@@ -584,6 +594,14 @@ function App() {
           onCancel={() => setDraft(null)}
           onContentChange={(content) => setDraft({ ...draft, content })}
           onConfirm={() => writeMutation.mutate(draft)}
+        />
+      )}
+      {isSettingsOpen && (
+        <SettingsDialog
+          controller={appUpdater}
+          nativeEnabled={nativeUpdaterEnabled}
+          onClose={() => setIsSettingsOpen(false)}
+          uiText={uiText}
         />
       )}
     </div>

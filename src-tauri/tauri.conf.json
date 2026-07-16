@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Agent Memory Manager",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "com.linc.agent-memory-manager",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -28,6 +28,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "icon": [
       "icons/32x32.png",
@@ -38,6 +39,17 @@
     ],
     "macOS": {
       "minimumSystemVersion": "12.0"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdGMTJDMDM0QUVERThBQjkKUldTNWl0NnVOTUFTZitSNWxjRFlyeVdJSDRMeXlGQXNWb3o2OHBrSk9KT2o4Q1k5NktjUDR0UXAK",
+      "endpoints": [
+        "https://github.com/linc77/agent-memory-manager/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

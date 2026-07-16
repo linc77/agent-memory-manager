@@ -8,6 +8,7 @@
 | [Agent Configuration Contract](./agent-configuration.md) | Provider profiles, Keychain, native adapters, backups, and Tauri payload | Active |
 | [Agent Memory Scope Contract](./agent-memory-scope.md) | Agent-specific roots, source isolation, and read-only snapshots | Active |
 | [MCP Inventory Contract](./mcp-inventory.md) | Native MCP discovery and pre-serialization redaction | Active |
+| [Application Updater Contract](./app-updater.md) | Signed GitHub Release metadata, native updater permissions, UI states, and cross-platform bundles | Active |
 
 ## Pre-Development Checklist
 
@@ -19,6 +20,8 @@
   profiles, source excerpts, or write boundaries.
 - Read `mcp-inventory.md` before changing MCP formats, scopes, enabled state,
   transport detection, redaction, or Tauri fields.
+- Read `app-updater.md` before changing versions, update UI/state, updater keys,
+  native permissions, release bundles, or `latest.json` verification.
 
 ## Quality Check
 
@@ -27,4 +30,7 @@
 - Run `cargo test --manifest-path src-tauri/Cargo.toml agent_config -- --nocapture`.
 - Run `cargo test --manifest-path src-tauri/Cargo.toml memory:: -- --nocapture`.
 - Run `cargo test --manifest-path src-tauri/Cargo.toml mcp_manager -- --nocapture`.
+- Run `pnpm exec vitest run src/lib/appUpdate.test.ts src/hooks/useAppUpdater.test.tsx src/App.fixture.test.tsx`.
+- Run a signed macOS build with `--bundles app,dmg`; reject any build that does
+  not emit both `.app.tar.gz` and `.app.tar.gz.sig`.
 - Confirm frontend/backend field names still round-trip through Tauri camelCase.

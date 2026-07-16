@@ -16,6 +16,8 @@ export interface UiText {
     agentMenuLabel: string;
     currentAgent: string;
     manageAgent: string;
+    settings: string;
+    updateAvailable: string;
     languageLabel: string;
     sections: {
       memoryModel: string;
@@ -135,6 +137,28 @@ export interface UiText {
     configPath: string;
     catalogPath: string;
   };
+  settings: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    close: string;
+    appUpdate: string;
+    appUpdateHint: string;
+    currentVersion: string;
+    unknownVersion: string;
+    autoCheck: string;
+    autoCheckHint: string;
+    desktopOnly: string;
+    check: string;
+    checking: string;
+    upToDate: string;
+    available: (version: string) => string;
+    downloading: (progress: number | null) => string;
+    installing: string;
+    installed: string;
+    install: string;
+    error: string;
+  };
   board: {
     eyebrow: string;
     scannedSources: string;
@@ -222,6 +246,8 @@ const zhCN: UiText = {
     agentMenuLabel: "切换当前 Agent",
     currentAgent: "当前 Agent",
     manageAgent: "管理当前 Agent 配置",
+    settings: "设置",
+    updateAvailable: "可更新",
     languageLabel: "语言",
     sections: {
       memoryModel: "记忆模型",
@@ -421,6 +447,29 @@ const zhCN: UiText = {
     configPath: "原生配置",
     catalogPath: "AMM 配置目录",
   },
+  settings: {
+    eyebrow: "应用设置",
+    title: "设置",
+    subtitle: "管理 Agent Memory Manager 的全局行为。",
+    close: "关闭设置",
+    appUpdate: "应用更新",
+    appUpdateHint: "通过 GitHub Releases 安全检查并安装新版本。",
+    currentVersion: "当前版本",
+    unknownVersion: "仅桌面版可读取",
+    autoCheck: "启动时自动检查",
+    autoCheckHint: "只检查，不会自动下载或安装。",
+    desktopOnly: "更新检查仅在安装后的桌面应用中可用。",
+    check: "检查更新",
+    checking: "正在检查更新...",
+    upToDate: "当前已是最新版本。",
+    available: (version) => `发现新版本 v${version}`,
+    downloading: (progress) =>
+      progress === null ? "正在下载安装包..." : `正在下载安装包... ${progress}%`,
+    installing: "下载完成，正在安装...",
+    installed: "安装完成，正在重新启动...",
+    install: "下载并安装",
+    error: "更新失败",
+  },
   board: {
     eyebrow: "记忆",
     scannedSources: "依据",
@@ -491,6 +540,8 @@ const enUS: UiText = {
     agentMenuLabel: "Switch current Agent",
     currentAgent: "Current Agent",
     manageAgent: "Manage current Agent",
+    settings: "Settings",
+    updateAvailable: "Update",
     languageLabel: "Language",
     sections: {
       memoryModel: "Memory Model",
@@ -689,6 +740,29 @@ const enUS: UiText = {
     switched: (agent) => `${agent} switched to the new profile`,
     configPath: "Native config",
     catalogPath: "AMM profile catalog",
+  },
+  settings: {
+    eyebrow: "Application settings",
+    title: "Settings",
+    subtitle: "Manage global Agent Memory Manager behavior.",
+    close: "Close settings",
+    appUpdate: "Application update",
+    appUpdateHint: "Securely check and install releases from GitHub.",
+    currentVersion: "Current version",
+    unknownVersion: "Available in the desktop app",
+    autoCheck: "Automatically check on startup",
+    autoCheckHint: "Checks only; downloads and installation always require confirmation.",
+    desktopOnly: "Update checks are available only in the installed desktop app.",
+    check: "Check for updates",
+    checking: "Checking for updates...",
+    upToDate: "You are using the latest version.",
+    available: (version) => `Version ${version} is available`,
+    downloading: (progress) =>
+      progress === null ? "Downloading update..." : `Downloading update... ${progress}%`,
+    installing: "Download complete. Installing...",
+    installed: "Installation complete. Relaunching...",
+    install: "Download and install",
+    error: "Update failed",
   },
   board: {
     eyebrow: "Memory",

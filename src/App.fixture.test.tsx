@@ -88,6 +88,19 @@ describe("App browser fixture mode", () => {
     expect(ensureLocalStorage().getItem("agent-memory-manager.locale")).toBe("zh-CN");
   });
 
+  it("opens global update settings without invoking native updater APIs", async () => {
+    const { findByRole, findByText, getByRole } = renderFixtureApp();
+
+    fireEvent.click(await findByRole("button", { name: "设置" }));
+
+    expect(await findByRole("dialog", { name: "设置" })).toBeInTheDocument();
+    expect(await findByText("应用更新")).toBeInTheDocument();
+    expect(await findByText("更新检查仅在安装后的桌面应用中可用。")).toBeInTheDocument();
+    expect(getByRole("checkbox", { name: /启动时自动检查/ })).toBeDisabled();
+    fireEvent.click(getByRole("button", { name: "关闭设置" }));
+    expect(getByRole("button", { name: "设置" })).toBeInTheDocument();
+  });
+
   it("browses and filters the managed skill inventory", async () => {
     const {
       findAllByText,

@@ -17,6 +17,7 @@ const revealItemInDirMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: invokeMock,
+  isTauri: () => false,
 }));
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
