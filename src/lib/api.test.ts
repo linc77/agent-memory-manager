@@ -4,6 +4,8 @@ import {
   activateAgentProviderProfile,
   draftCorrectionFromContent,
   loadAgentConfigInventory,
+  loadAgentMemorySnapshot,
+  loadMcpInventory,
   loadSkillInventory,
   openSourceFile,
   runCodexAudit,
@@ -64,8 +66,8 @@ describe("fixture API mode", () => {
   it("serves deterministic skill inventory without calling Tauri", async () => {
     const inventory = await loadSkillInventory();
 
-    expect(inventory.capabilityCount).toBe(3);
-    expect(inventory.copyCount).toBe(4);
+    expect(inventory.capabilityCount).toBe(5);
+    expect(inventory.copyCount).toBe(6);
     expect(inventory.invalidCount).toBe(1);
     expect(inventory.capabilities.map((capability) => capability.name)).toContain("find-skills");
     expect(inventory.capabilities.find((capability) => capability.name === "find-skills")?.copyCount).toBe(2);
@@ -84,6 +86,22 @@ describe("fixture API mode", () => {
     expect(result.inventory.targets[0].activeProfileId).toBe("fixture-codex-team");
     expect(result.backupPath).toContain("backups/agent-config/codex");
     expect(JSON.stringify(inventory)).not.toContain("sk-");
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps fixture memory and MCP inventories isolated by Agent", async () => {
+    const claudeMemory = await loadAgentMemorySnapshot("claudeCode");
+    const hermesMemory = await loadAgentMemorySnapshot("hermes");
+    const codexMcp = await loadMcpInventory("codex");
+    const claudeMcp = await loadMcpInventory("claudeCode");
+
+    expect(claudeMemory.writable).toBe(false);
+    expect(claudeMemory.profile.sections[0].body).toContain("Claude Code");
+    expect(claudeMemory.profile.sections[0].body).not.toContain("Hermes");
+    expect(hermesMemory.profile.sections[0].body).toContain("Hermes");
+    expect(codexMcp.servers.map((server) => server.name)).toEqual(["context7"]);
+    expect(claudeMcp.servers.map((server) => server.name)).toEqual(["drawio"]);
+    expect(JSON.stringify([codexMcp, claudeMcp])).not.toContain("sk-");
     expect(invokeMock).not.toHaveBeenCalled();
   });
 });
@@ -118,6 +136,21 @@ describe("desktop skill API", () => {
     expect(invokeMock).toHaveBeenNthCalledWith(2, "activate_agent_provider_profile", {
       agent: "hermes",
       profileId: "profile-1",
+    });
+  });
+
+  it("invokes native Agent memory and MCP discovery commands", async () => {
+    const memory = { agent: "claudeCode", writable: false };
+    const mcp = { agent: "claudeCode", servers: [] };
+    invokeMock.mockResolvedValueOnce(memory).mockResolvedValueOnce(mcp);
+
+    await expect(loadAgentMemorySnapshot("claudeCode")).resolves.toBe(memory);
+    await expect(loadMcpInventory("claudeCode")).resolves.toBe(mcp);
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "load_agent_memory_snapshot", {
+      agent: "claudeCode",
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(2, "load_mcp_inventory", {
+      agent: "claudeCode",
     });
   });
 });

@@ -10,6 +10,7 @@ import {
   Search,
 } from "lucide-react";
 import { useState } from "react";
+import { agentMeta } from "../lib/agentScope";
 import {
   entriesForView,
   findSourceForEntry,
@@ -36,6 +37,7 @@ import type {
   MemorySource,
   ScanResult,
   SuggestedCorrection,
+  AgentKind,
 } from "../lib/types";
 
 type EvidenceTrustStatus = MemoryTruthStatus;
@@ -282,8 +284,10 @@ function renderMemoryProfile({
   profileError,
   sections,
   sources,
+  selectedAgent,
   uiText,
   truth,
+  writable,
   headingLevel = "h2",
   variant = "detail",
 }: {
@@ -295,8 +299,10 @@ function renderMemoryProfile({
   profileError?: unknown;
   sections: MemoryProfileSection[];
   sources: MemorySource[];
+  selectedAgent: AgentKind;
   truth: MemoryTruthModel;
   uiText: UiText;
+  writable: boolean;
   onDraftProfileCorrection: (section: MemoryProfileSection) => void;
   onCancelProfileGeneration: () => void;
   onOpenSource: (path: string) => void;
@@ -311,7 +317,7 @@ function renderMemoryProfile({
         {!isOverviewProfile && <p className="eyebrow">{uiText.memorySummary.eyebrow}</p>}
         <div className="memory-profile-title-row">
           <div>
-            <Heading>{uiText.memorySummary.title}</Heading>
+            <Heading>{uiText.memorySummary.title(agentMeta[selectedAgent].label)}</Heading>
             {profile && (
               <span className="profile-source-note">
                 {uiText.memorySummary.generatedBy(
@@ -321,16 +327,18 @@ function renderMemoryProfile({
               </span>
             )}
           </div>
-          <button
-            className="secondary-button compact"
-            onClick={isProfileRegenerating ? onCancelProfileGeneration : onRegenerateProfile}
-            type="button"
-          >
-            <Bot size={15} />
-            {isProfileRegenerating
-              ? uiText.memorySummary.cancelGeneration
-              : uiText.memorySummary.regenerate}
-          </button>
+          {writable && (
+            <button
+              className="secondary-button compact"
+              onClick={isProfileRegenerating ? onCancelProfileGeneration : onRegenerateProfile}
+              type="button"
+            >
+              <Bot size={15} />
+              {isProfileRegenerating
+                ? uiText.memorySummary.cancelGeneration
+                : uiText.memorySummary.regenerate}
+            </button>
+          )}
         </div>
       </header>
       {(isProfileLoading || isProfileRegenerating) && (
@@ -354,14 +362,16 @@ function renderMemoryProfile({
             </div>
             <p>{section.body}</p>
             <div className="memory-profile-actions">
-              <button
-                className="secondary-button compact quiet"
-                onClick={() => onDraftProfileCorrection(section)}
-                type="button"
-              >
-                <PencilLine size={15} />
-                {uiText.memorySummary.wrong}
-              </button>
+              {writable && (
+                <button
+                  className="secondary-button compact quiet"
+                  onClick={() => onDraftProfileCorrection(section)}
+                  type="button"
+                >
+                  <PencilLine size={15} />
+                  {uiText.memorySummary.wrong}
+                </button>
+              )}
               <ProfileEvidenceDetails
                 onOpenSource={onOpenSource}
                 section={section}
@@ -390,6 +400,7 @@ export function KnowledgeBoard({
   query,
   scan,
   selectedEntryId,
+  selectedAgent,
   onAuditModeChange,
   onQueryChange,
   onRefresh,
@@ -401,6 +412,7 @@ export function KnowledgeBoard({
   onOpenSource,
   onSelectEntry,
   uiText,
+  writable,
 }: {
   activeTopic: MemoryView;
   auditError?: unknown;
@@ -414,7 +426,9 @@ export function KnowledgeBoard({
   query: string;
   scan?: ScanResult;
   selectedEntryId?: string;
+  selectedAgent: AgentKind;
   uiText: UiText;
+  writable: boolean;
   onAuditModeChange: (mode: CodexAuditMode) => void;
   onQueryChange: (query: string) => void;
   onRefresh: () => void;
@@ -517,10 +531,12 @@ export function KnowledgeBoard({
           profile,
           profileError,
           sections: profileSections,
+          selectedAgent,
           sources,
           truth,
           uiText,
           variant: "overview",
+          writable,
         })}
 
       {activeTopic === "effective" &&
@@ -534,9 +550,11 @@ export function KnowledgeBoard({
           profile,
           profileError,
           sections: profileSections,
+          selectedAgent,
           sources,
           truth,
           uiText,
+          writable,
         })}
 
       {isAuditView && (

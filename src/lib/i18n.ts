@@ -9,13 +9,13 @@ export interface UiText {
     fixtureBanner: string;
     resizeSidebar: string;
     resizeInspector: string;
-    scanning: string;
+    scanning: (agent: string) => string;
     correctionWritten: (path: string) => string;
   };
   sidebar: {
-    brandTitle: string;
-    brandSubtitle: string;
-    defaultRoot: string;
+    agentMenuLabel: string;
+    currentAgent: string;
+    manageAgent: string;
     languageLabel: string;
     sections: {
       memoryModel: string;
@@ -32,7 +32,7 @@ export interface UiText {
   auditModes: Record<CodexAuditMode, string>;
   memorySummary: {
     eyebrow: string;
-    title: string;
+    title: (agent: string) => string;
     wrong: string;
     viewEvidence: string;
     evidence: string;
@@ -76,6 +76,22 @@ export interface UiText {
     scanRoots: string;
     noDescription: string;
     copyCount: (count: number) => string;
+  };
+  mcp: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    refresh: string;
+    loading: string;
+    empty: string;
+    readOnly: string;
+    serverCount: string;
+    enabled: string;
+    disabled: string;
+    globalScope: string;
+    projectScope: string;
+    configSources: string;
+    transports: Record<"stdio" | "http" | "sse" | "unknown", string>;
   };
   agents: {
     eyebrow: string;
@@ -199,13 +215,13 @@ const zhCN: UiText = {
     fixtureBanner: "演示模式：仅使用示例记忆",
     resizeSidebar: "调整侧栏宽度",
     resizeInspector: "调整依据栏宽度",
-    scanning: "正在扫描 Codex 记忆...",
+    scanning: (agent) => `正在扫描 ${agent} 记忆...`,
     correctionWritten: (path) => `修正笔记已写入：${path}`,
   },
   sidebar: {
-    brandTitle: "Agent Memory",
-    brandSubtitle: "本地记忆",
-    defaultRoot: "正在扫描默认记忆根目录",
+    agentMenuLabel: "切换当前 Agent",
+    currentAgent: "当前 Agent",
+    manageAgent: "管理当前 Agent 配置",
     languageLabel: "语言",
     sections: {
       memoryModel: "记忆模型",
@@ -225,6 +241,7 @@ const zhCN: UiText = {
     skills: "技能",
     skillManager: "Skills",
     agentManager: "Agents",
+    mcpManager: "MCP",
     allSources: "全部来源",
     audit: "检查",
   },
@@ -277,7 +294,7 @@ const zhCN: UiText = {
   },
   memorySummary: {
     eyebrow: "关于你",
-    title: "Codex 目前这样理解你",
+    title: (agent) => `${agent} 目前这样理解你`,
     wrong: "这不对",
     viewEvidence: "查看依据",
     evidence: "依据",
@@ -341,10 +358,31 @@ const zhCN: UiText = {
     noDescription: "暂无说明",
     copyCount: (count) => `${count} 份副本`,
   },
+  mcp: {
+    eyebrow: "工具连接",
+    title: "MCP",
+    subtitle: "只读取当前 Agent 的原生 MCP 配置，不显示参数、环境变量或凭据。",
+    refresh: "刷新",
+    loading: "正在读取 MCP 配置...",
+    empty: "当前 Agent 还没有配置 MCP Server。",
+    readOnly: "只读发现：AMM 不会修改 Agent 的 MCP 配置。",
+    serverCount: "已配置服务",
+    enabled: "已启用",
+    disabled: "已停用",
+    globalScope: "全局",
+    projectScope: "项目",
+    configSources: "配置来源",
+    transports: {
+      stdio: "本地进程",
+      http: "HTTP",
+      sse: "SSE",
+      unknown: "未知传输",
+    },
+  },
   agents: {
     eyebrow: "Agent 配置",
-    title: "Agents",
-    subtitle: "在一处管理 Codex、Claude Code 与 Hermes 的模型服务配置。",
+    title: "配置",
+    subtitle: "管理当前 Agent 的模型服务与模型配置。",
     refresh: "刷新",
     addProfile: "添加配置",
     loading: "正在读取本机 Agent 配置...",
@@ -446,13 +484,13 @@ const enUS: UiText = {
     fixtureBanner: "Fixture mode: demo memory only",
     resizeSidebar: "Resize sidebar",
     resizeInspector: "Resize evidence pane",
-    scanning: "Scanning Codex memory...",
+    scanning: (agent) => `Scanning ${agent} memory...`,
     correctionWritten: (path) => `Correction note written: ${path}`,
   },
   sidebar: {
-    brandTitle: "Agent Memory",
-    brandSubtitle: "Local memory",
-    defaultRoot: "Scanning default memory root",
+    agentMenuLabel: "Switch current Agent",
+    currentAgent: "Current Agent",
+    manageAgent: "Manage current Agent",
     languageLabel: "Language",
     sections: {
       memoryModel: "Memory Model",
@@ -472,6 +510,7 @@ const enUS: UiText = {
     skills: "Skills",
     skillManager: "Skills",
     agentManager: "Agents",
+    mcpManager: "MCP",
     allSources: "All Sources",
     audit: "Check",
   },
@@ -524,7 +563,7 @@ const enUS: UiText = {
   },
   memorySummary: {
     eyebrow: "About you",
-    title: "How Codex currently understands you",
+    title: (agent) => `How ${agent} currently understands you`,
     wrong: "This is wrong",
     viewEvidence: "View evidence",
     evidence: "Evidence",
@@ -588,10 +627,31 @@ const enUS: UiText = {
     noDescription: "No description",
     copyCount: (count) => `${count} copies`,
   },
+  mcp: {
+    eyebrow: "Tool connections",
+    title: "MCP",
+    subtitle: "Reads only the current Agent's native MCP configuration without exposing arguments, environment values, or credentials.",
+    refresh: "Refresh",
+    loading: "Reading MCP configuration...",
+    empty: "No MCP servers are configured for this Agent.",
+    readOnly: "Read-only discovery: AMM does not change the Agent's MCP configuration.",
+    serverCount: "Configured servers",
+    enabled: "Enabled",
+    disabled: "Disabled",
+    globalScope: "Global",
+    projectScope: "Project",
+    configSources: "Configuration sources",
+    transports: {
+      stdio: "Local process",
+      http: "HTTP",
+      sse: "SSE",
+      unknown: "Unknown transport",
+    },
+  },
   agents: {
     eyebrow: "Agent configuration",
-    title: "Agents",
-    subtitle: "Manage provider and model profiles for Codex, Claude Code, and Hermes in one place.",
+    title: "Configuration",
+    subtitle: "Manage provider and model profiles for the current Agent.",
     refresh: "Refresh",
     addProfile: "Add profile",
     loading: "Reading local Agent configurations...",

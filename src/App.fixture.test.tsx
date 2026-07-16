@@ -61,12 +61,14 @@ describe("App browser fixture mode", () => {
   });
 
   it("uses Chinese UI chrome by default", async () => {
-    const { findByRole, findByText } = renderFixtureApp();
+    const { findByRole, findByText, queryByRole } = renderFixtureApp();
 
     expect(await findByText("演示模式：仅使用示例记忆")).toBeInTheDocument();
     expect(await findByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument();
+    expect(await findByRole("button", { name: /Codex/ })).toBeInTheDocument();
     expect(await findByRole("button", { name: "记忆" })).toBeInTheDocument();
     expect(await findByRole("button", { name: "检查" })).toBeInTheDocument();
+    expect(queryByRole("button", { name: "Agents" })).not.toBeInTheDocument();
   });
 
   it("switches between Chinese and English", async () => {
@@ -101,7 +103,7 @@ describe("App browser fixture mode", () => {
 
     fireEvent.click(await findByRole("button", { name: "Skills" }));
 
-    expect(await findByRole("heading", { name: "Skills" })).toBeInTheDocument();
+    expect(await findByRole("heading", { name: "Codex · Skills" })).toBeInTheDocument();
     expect((await findAllByText("find-skills")).length).toBeGreaterThan(0);
     expect(getAllByText("2 份副本").length).toBeGreaterThan(0);
     expect(getAllByText("Codex").length).toBeGreaterThan(0);
@@ -119,22 +121,72 @@ describe("App browser fixture mode", () => {
     expect(queryByText("find-skills")).not.toBeInTheDocument();
   });
 
-  it("switches Agent targets and activates a provider profile", async () => {
-    const { findByRole, findByText, getByRole, queryByRole, container } = renderFixtureApp();
+  it("switches the global Agent context across memory, Skills, MCP, and configuration", async () => {
+    const {
+      findByRole,
+      findByText,
+      getByRole,
+      queryByRole,
+      queryByText,
+      container,
+    } = renderFixtureApp();
 
-    fireEvent.click(await findByRole("button", { name: "Agents" }));
+    fireEvent.click(await findByRole("button", { name: /Codex/ }));
+    fireEvent.click(await findByRole("menuitemradio", { name: /Claude Code/ }));
 
-    expect(await findByRole("heading", { name: "Agents" })).toBeInTheDocument();
-    expect(await findByText("OpenAI Official")).toBeInTheDocument();
-    expect(container.querySelector(".app-shell")).toHaveClass("agent-mode");
-    expect(queryByRole("separator", { name: "调整依据栏宽度" })).not.toBeInTheDocument();
+    expect(await findByRole("heading", { name: "Claude Code 目前这样理解你" })).toBeInTheDocument();
+    expect(await findByText("Claude Code fixture memory is isolated from Codex.")).toBeInTheDocument();
+    expect(queryByRole("button", { name: "这不对" })).not.toBeInTheDocument();
+    expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
+    expect(ensureLocalStorage().getItem("agent-memory-manager.selected-agent")).toBe(
+      "claudeCode",
+    );
+
+    fireEvent.click(getByRole("button", { name: "Skills" }));
+    expect(await findByRole("heading", { name: "Claude Code · Skills" })).toBeInTheDocument();
+    expect(await findByText("claude-helper")).toBeInTheDocument();
+    expect(queryByText("hermes-helper")).not.toBeInTheDocument();
+
+    fireEvent.click(getByRole("button", { name: "MCP" }));
+    expect(await findByRole("heading", { name: "Claude Code · MCP" })).toBeInTheDocument();
+    expect(await findByText("drawio")).toBeInTheDocument();
+    expect(queryByText("context7")).not.toBeInTheDocument();
 
     fireEvent.click(getByRole("button", { name: /Claude Code/ }));
-    expect(await findByText("Anthropic Official")).toBeInTheDocument();
-    fireEvent.click(getByRole("button", { name: /Hermes/ }));
-    expect(await findByText("OpenRouter")).toBeInTheDocument();
+    fireEvent.click(await findByRole("menuitemradio", { name: /Hermes/ }));
+    expect(await findByRole("heading", { name: "Hermes · MCP" })).toBeInTheDocument();
+    expect(await findByText("mnemosyne")).toBeInTheDocument();
+    expect(queryByText("drawio")).not.toBeInTheDocument();
 
-    fireEvent.click(getByRole("button", { name: /Codex/ }));
+    fireEvent.click(getByRole("button", { name: /Hermes/ }));
+    fireEvent.click(await findByRole("menuitem", { name: "管理当前 Agent 配置" }));
+    expect(await findByRole("heading", { name: "Hermes · 配置" })).toBeInTheDocument();
+    expect(await findByText("OpenRouter")).toBeInTheDocument();
+    expect(queryByText("OpenAI Official")).not.toBeInTheDocument();
+    expect(queryByText("Anthropic Official")).not.toBeInTheDocument();
+    expect(container.querySelector(".app-shell")).toHaveClass("agent-mode");
+    expect(queryByRole("separator", { name: "调整依据栏宽度" })).not.toBeInTheDocument();
+  });
+
+  it("restores the last selected Agent", async () => {
+    ensureLocalStorage().setItem("agent-memory-manager.selected-agent", "hermes");
+
+    const { findByRole, findByText, queryByRole } = renderFixtureApp();
+
+    expect(await findByRole("heading", { name: "Hermes 目前这样理解你" })).toBeInTheDocument();
+    expect(await findByText("Hermes fixture memory is isolated from Codex.")).toBeInTheDocument();
+    expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
+  });
+
+  it("activates a provider profile for the selected Agent only", async () => {
+    const { findByRole, findByText, queryByText } = renderFixtureApp();
+
+    fireEvent.click(await findByRole("button", { name: /Codex/ }));
+    fireEvent.click(await findByRole("menuitem", { name: "管理当前 Agent 配置" }));
+
+    expect(await findByRole("heading", { name: "Codex · 配置" })).toBeInTheDocument();
+    expect(await findByText("OpenAI Official")).toBeInTheDocument();
+    expect(queryByText("Anthropic Official")).not.toBeInTheDocument();
     fireEvent.click(await findByRole("button", { name: "启用" }));
     expect(await findByText(/Codex 已切换到新配置/)).toBeInTheDocument();
     expect(await findByText(/原配置已备份/)).toBeInTheDocument();

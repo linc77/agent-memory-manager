@@ -4,12 +4,14 @@ import type {
   AgentActivationResult,
   AgentConfigInventory,
   AgentKind,
+  AgentMemorySnapshot,
   CodexAuditMode,
   CodexAuditRun,
   CodexAuditTask,
   CorrectionDraft,
   MemoryProfile,
   MemoryProfileGenerationTask,
+  McpInventory,
   ScanResult,
   SaveAgentProfileInput,
   SkillInventory,
@@ -191,6 +193,22 @@ export function loadAgentConfigInventory() {
   return invoke<AgentConfigInventory>("load_agent_config_inventory");
 }
 
+export function loadAgentMemorySnapshot(agent: AgentKind) {
+  if (isFixtureMode()) {
+    return Promise.resolve(fixtureAgentMemorySnapshot(agent));
+  }
+
+  return invoke<AgentMemorySnapshot>("load_agent_memory_snapshot", { agent });
+}
+
+export function loadMcpInventory(agent: AgentKind) {
+  if (isFixtureMode()) {
+    return Promise.resolve(structuredClone(fixtureMcpInventories[agent]));
+  }
+
+  return invoke<McpInventory>("load_mcp_inventory", { agent });
+}
+
 export function saveAgentProviderProfile(input: SaveAgentProfileInput) {
   if (isFixtureMode()) {
     const inventory = cloneFixtureAgentInventory();
@@ -343,6 +361,86 @@ function withFixtureRoot(rootOverride: string | null): ScanResult {
   };
 }
 
+function fixtureAgentMemorySnapshot(agent: AgentKind): AgentMemorySnapshot {
+  if (agent === "codex") {
+    return {
+      agent,
+      writable: true,
+      scan: withFixtureRoot(null),
+      profile: fixtureMemoryProfile(null),
+    };
+  }
+  const root =
+    agent === "claudeCode" ? "/Users/demo/.claude/projects" : "/Users/demo/.hermes/memories";
+  const relativePath =
+    agent === "claudeCode" ? "project-demo/memory/MEMORY.md" : "USER.md";
+  const label = agent === "claudeCode" ? "Claude Code" : "Hermes";
+  const summary = `${label} fixture memory is isolated from Codex.`;
+  const scan: ScanResult = {
+    root,
+    sources: [
+      {
+        id: `fixture-${agent}-source`,
+        path: `${root}/${relativePath}`,
+        relativePath,
+        kind: "registry",
+        modifiedMs: 1_752_633_600_000,
+        bytes: 128,
+        lines: 4,
+        sha256: `fixture-${agent}-sha`,
+      },
+    ],
+    entries: [
+      {
+        id: `${relativePath}:1-4`,
+        topic: "profile",
+        relatedTopics: [],
+        title: `${label} memory`,
+        summary,
+        searchText: summary,
+        sourcePath: relativePath,
+        startLine: 1,
+        endLine: 4,
+      },
+    ],
+    risks: [],
+  };
+  return {
+    agent,
+    writable: false,
+    scan,
+    profile: {
+      schemaVersion: "1",
+      generatedAt: "2026-07-16T02:00:00Z",
+      sourceHash: `fixture-${agent}-profile`,
+      generator: "deterministic-profile-v3",
+      cachePath: `${root}/.amm/profile.json`,
+      sections: [
+        {
+          id: `fixture-${agent}-section`,
+          title: `${label} memory`,
+          body: summary,
+          evidence: [
+            {
+              sourcePath: relativePath,
+              startLine: 1,
+              endLine: 4,
+              summary,
+            },
+          ],
+          confidence: "high",
+          stability: "stable",
+        },
+      ],
+      metadata: {
+        memoryRoot: root,
+        inputEntries: 1,
+        currentEntries: 1,
+      },
+    },
+  };
+}
+
 function buildFixtureDraft(
   rootOverride: string | null,
   slug: string,
@@ -365,8 +463,8 @@ const fixtureSkillInventory: SkillInventory = {
   provider: "native-filesystem",
   snapshotPath: "/Users/demo/.agent-memory-manager/skill-inventory.json",
   snapshotError: null,
-  capabilityCount: 3,
-  copyCount: 4,
+  capabilityCount: 5,
+  copyCount: 6,
   duplicateGroupCount: 1,
   invalidCount: 1,
   roots: [
@@ -385,6 +483,24 @@ const fixtureSkillInventory: SkillInventory = {
       path: "/Users/demo/project/.codex/skills",
       tool: "Codex",
       scope: "project",
+      exists: true,
+      copyCount: 1,
+    },
+    {
+      id: "claude",
+      label: "Claude Code",
+      path: "/Users/demo/.claude/skills",
+      tool: "Claude Code",
+      scope: "global",
+      exists: true,
+      copyCount: 1,
+    },
+    {
+      id: "hermes",
+      label: "Hermes",
+      path: "/Users/demo/.hermes/skills",
+      tool: "Hermes",
+      scope: "global",
       exists: true,
       copyCount: 1,
     },
@@ -479,7 +595,108 @@ const fixtureSkillInventory: SkillInventory = {
         },
       ],
     },
+    {
+      id: "hash-claude-helper",
+      name: "claude-helper",
+      description: "A Claude Code-only fixture Skill.",
+      contentHash: "hash-claude-helper",
+      health: "ready",
+      copyCount: 1,
+      tools: ["Claude Code"],
+      copies: [
+        {
+          id: "copy-claude-helper",
+          name: "claude-helper",
+          description: "A Claude Code-only fixture Skill.",
+          path: "/Users/demo/.claude/skills/claude-helper",
+          manifestPath: "/Users/demo/.claude/skills/claude-helper/SKILL.md",
+          tool: "Claude Code",
+          scope: "global",
+          filesystemKind: "directory",
+          resolvedPath: "/Users/demo/.claude/skills/claude-helper",
+          valid: true,
+          issue: null,
+          contentHash: "hash-claude-helper",
+        },
+      ],
+    },
+    {
+      id: "hash-hermes-helper",
+      name: "hermes-helper",
+      description: "A Hermes-only fixture Skill.",
+      contentHash: "hash-hermes-helper",
+      health: "ready",
+      copyCount: 1,
+      tools: ["Hermes"],
+      copies: [
+        {
+          id: "copy-hermes-helper",
+          name: "hermes-helper",
+          description: "A Hermes-only fixture Skill.",
+          path: "/Users/demo/.hermes/skills/hermes-helper",
+          manifestPath: "/Users/demo/.hermes/skills/hermes-helper/SKILL.md",
+          tool: "Hermes",
+          scope: "global",
+          filesystemKind: "directory",
+          resolvedPath: "/Users/demo/.hermes/skills/hermes-helper",
+          valid: true,
+          issue: null,
+          contentHash: "hash-hermes-helper",
+        },
+      ],
+    },
   ],
+};
+
+const fixtureMcpInventories: Record<AgentKind, McpInventory> = {
+  codex: {
+    generatedAt: "2026-07-16T02:00:00Z",
+    agent: "codex",
+    configPaths: ["/Users/demo/.codex/config.toml"],
+    servers: [
+      {
+        id: "fixture-codex-context7",
+        name: "context7",
+        scope: "global",
+        scopeLabel: "Global",
+        transport: "stdio",
+        endpoint: "npx",
+        enabled: true,
+      },
+    ],
+  },
+  claudeCode: {
+    generatedAt: "2026-07-16T02:00:00Z",
+    agent: "claudeCode",
+    configPaths: ["/Users/demo/.claude.json"],
+    servers: [
+      {
+        id: "fixture-claude-drawio",
+        name: "drawio",
+        scope: "global",
+        scopeLabel: "Global",
+        transport: "stdio",
+        endpoint: "npx",
+        enabled: true,
+      },
+    ],
+  },
+  hermes: {
+    generatedAt: "2026-07-16T02:00:00Z",
+    agent: "hermes",
+    configPaths: ["/Users/demo/.hermes/config.yaml"],
+    servers: [
+      {
+        id: "fixture-hermes-mnemosyne",
+        name: "mnemosyne",
+        scope: "global",
+        scopeLabel: "Global",
+        transport: "stdio",
+        endpoint: "uvx",
+        enabled: true,
+      },
+    ],
+  },
 };
 
 const fixtureAgentInventory: AgentConfigInventory = {

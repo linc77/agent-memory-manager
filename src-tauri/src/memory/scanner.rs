@@ -1,3 +1,4 @@
+use crate::agent_config::AgentKind;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -72,6 +73,62 @@ pub fn scan_sources(root: &Path) -> std::io::Result<Vec<MemorySource>> {
     )?;
     collect_skill_files(root, &root.join("skills"), &mut sources)?;
     sources.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
+    Ok(sources)
+}
+
+pub fn scan_agent_sources(agent: AgentKind, root: &Path) -> std::io::Result<Vec<MemorySource>> {
+    match agent {
+        AgentKind::Codex => scan_sources(root),
+        AgentKind::ClaudeCode => scan_claude_sources(root),
+        AgentKind::Hermes => scan_hermes_sources(root),
+    }
+}
+
+fn scan_claude_sources(root: &Path) -> std::io::Result<Vec<MemorySource>> {
+    let mut sources = Vec::new();
+    if !root.is_dir() {
+        return Ok(sources);
+    }
+    for project in fs::read_dir(root)? {
+        let project = project?.path();
+        if !project.is_dir() {
+            continue;
+        }
+        collect_if_file(
+            root,
+            &project,
+            "MEMORY.md",
+            MemorySourceKind::Registry,
+            &mut sources,
+        )?;
+        collect_dir(
+            root,
+            &project.join("memory"),
+            MemorySourceKind::Registry,
+            &mut sources,
+        )?;
+    }
+    sources.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    Ok(sources)
+}
+
+fn scan_hermes_sources(root: &Path) -> std::io::Result<Vec<MemorySource>> {
+    let mut sources = Vec::new();
+    collect_if_file(
+        root,
+        root,
+        "MEMORY.md",
+        MemorySourceKind::Registry,
+        &mut sources,
+    )?;
+    collect_if_file(
+        root,
+        root,
+        "USER.md",
+        MemorySourceKind::Registry,
+        &mut sources,
+    )?;
+    sources.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     Ok(sources)
 }
 
@@ -178,5 +235,46 @@ mod tests {
         assert!(sources
             .iter()
             .any(|source| source.kind == MemorySourceKind::AdHocNote));
+    }
+
+    #[test]
+    fn scans_claude_project_memory_without_crossing_project_boundaries() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        fs::create_dir_all(root.join("project-a/memory")).unwrap();
+        fs::create_dir_all(root.join("project-b/memory")).unwrap();
+        fs::write(root.join("project-a/memory/MEMORY.md"), "# A\n\nAlpha\n").unwrap();
+        fs::write(root.join("project-a/memory/detail.md"), "# Detail\n\nOne\n").unwrap();
+        fs::write(root.join("project-b/MEMORY.md"), "# B\n\nBeta\n").unwrap();
+        fs::write(root.join("outside.md"), "# Outside\n\nIgnored\n").unwrap();
+
+        let sources = scan_agent_sources(AgentKind::ClaudeCode, root).unwrap();
+
+        assert_eq!(sources.len(), 3);
+        assert!(sources
+            .iter()
+            .all(|source| source.kind == MemorySourceKind::Registry));
+        assert!(sources
+            .iter()
+            .all(|source| !source.relative_path.contains("outside.md")));
+    }
+
+    #[test]
+    fn scans_only_hermes_persistent_memory_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        fs::write(root.join("MEMORY.md"), "# Memory\n\nFact\n").unwrap();
+        fs::write(root.join("USER.md"), "# User\n\nPreference\n").unwrap();
+        fs::write(root.join("notes.md"), "# Notes\n\nIgnored\n").unwrap();
+
+        let sources = scan_agent_sources(AgentKind::Hermes, root).unwrap();
+
+        assert_eq!(sources.len(), 2);
+        assert!(sources
+            .iter()
+            .any(|source| source.relative_path == "MEMORY.md"));
+        assert!(sources
+            .iter()
+            .any(|source| source.relative_path == "USER.md"));
     }
 }

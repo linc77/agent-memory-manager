@@ -13,6 +13,7 @@ export type MemoryView =
   | "skills"
   | "skillManager"
   | "agentManager"
+  | "mcpManager"
   | "allSources"
   | "audit";
 

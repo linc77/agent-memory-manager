@@ -1,3 +1,4 @@
+use crate::agent_config::AgentKind;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -18,13 +19,13 @@ use super::correction::{
     CorrectionDraft,
 };
 use super::parser::{parse_entries, MemoryEntry};
-use super::paths::resolve_memory_root;
+use super::paths::{resolve_agent_memory_root, resolve_memory_root};
 use super::profile::{
-    generate_memory_profile_for_root, invalidate_memory_profile_cache,
-    load_memory_profile_for_root, MemoryProfile,
+    build_memory_profile_without_cache, generate_memory_profile_for_root,
+    invalidate_memory_profile_cache, load_memory_profile_for_root, MemoryProfile,
 };
 use super::risk::{detect_risks, RiskFlag};
-use super::scanner::{scan_sources, MemorySource};
+use super::scanner::{scan_agent_sources, scan_sources, MemorySource};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +34,15 @@ pub struct ScanResult {
     pub sources: Vec<MemorySource>,
     pub entries: Vec<MemoryEntry>,
     pub risks: Vec<RiskFlag>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentMemorySnapshot {
+    pub agent: AgentKind,
+    pub writable: bool,
+    pub scan: ScanResult,
+    pub profile: MemoryProfile,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -126,6 +136,32 @@ impl Default for CodexAuditState {
 pub fn scan_memories(root_override: Option<String>) -> Result<ScanResult, String> {
     let root = resolve_memory_root(root_override);
     scan_memory_root(&root)
+}
+
+#[tauri::command]
+pub fn load_agent_memory_snapshot(agent: AgentKind) -> Result<AgentMemorySnapshot, String> {
+    let root = resolve_agent_memory_root(agent, None);
+    let sources = scan_agent_sources(agent, &root).map_err(|error| error.to_string())?;
+    let mut entries = Vec::new();
+    for source in &sources {
+        let text = fs::read_to_string(&source.path).map_err(|error| error.to_string())?;
+        entries.extend(parse_entries(&source.relative_path, &text));
+    }
+    let risks = detect_risks(&entries);
+    let scan = ScanResult {
+        root: root.to_string_lossy().to_string(),
+        sources,
+        entries,
+        risks,
+    };
+    let profile =
+        build_memory_profile_without_cache(&root, &scan.sources, &scan.entries, &scan.risks);
+    Ok(AgentMemorySnapshot {
+        agent,
+        writable: agent == AgentKind::Codex,
+        scan,
+        profile,
+    })
 }
 
 fn scan_memory_root(root: &Path) -> Result<ScanResult, String> {

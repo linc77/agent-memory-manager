@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bot,
@@ -16,6 +16,7 @@ import {
   loadAgentConfigInventory,
   saveAgentProviderProfile,
 } from "../lib/api";
+import { agentMeta } from "../lib/agentScope";
 import type { UiText } from "../lib/i18n";
 import type {
   AgentConfigInventory,
@@ -24,14 +25,6 @@ import type {
   AgentProviderProfile,
   SaveAgentProfileInput,
 } from "../lib/types";
-
-const agents: AgentKind[] = ["claudeCode", "codex", "hermes"];
-
-const agentMarks: Record<AgentKind, string> = {
-  claudeCode: "C",
-  codex: "◎",
-  hermes: "H",
-};
 
 const defaultProfiles: Record<AgentKind, Omit<SaveAgentProfileInput, "agent">> = {
   codex: {
@@ -95,9 +88,14 @@ function protocolLabel(protocol: AgentProtocol) {
   }[protocol];
 }
 
-export function AgentConfigManager({ uiText }: { uiText: UiText }) {
+export function AgentConfigManager({
+  selectedAgent,
+  uiText,
+}: {
+  selectedAgent: AgentKind;
+  uiText: UiText;
+}) {
   const queryClient = useQueryClient();
-  const [selectedAgent, setSelectedAgent] = useState<AgentKind>("codex");
   const [editing, setEditing] = useState<SaveAgentProfileInput | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const inventoryQuery = useQuery({
@@ -108,6 +106,11 @@ export function AgentConfigManager({ uiText }: { uiText: UiText }) {
     () => inventoryQuery.data?.targets.find((item) => item.agent === selectedAgent),
     [inventoryQuery.data?.targets, selectedAgent],
   );
+
+  useEffect(() => {
+    setEditing(null);
+    setNotice(null);
+  }, [selectedAgent]);
 
   function applyInventory(inventory: AgentConfigInventory) {
     queryClient.setQueryData(["agent-config-inventory"], inventory);
@@ -154,7 +157,7 @@ export function AgentConfigManager({ uiText }: { uiText: UiText }) {
       <header className="toolbar agent-toolbar">
         <div>
           <p className="eyebrow">{uiText.agents.eyebrow}</p>
-          <h1>{uiText.agents.title}</h1>
+          <h1>{target?.label ?? agentMeta[selectedAgent].label} · {uiText.agents.title}</h1>
           <span className="toolbar-meta">{uiText.agents.subtitle}</span>
         </div>
         <div className="agent-toolbar-actions">
@@ -178,28 +181,6 @@ export function AgentConfigManager({ uiText }: { uiText: UiText }) {
         </div>
       </header>
 
-      <nav className="agent-switcher" aria-label={uiText.agents.title}>
-        {agents.map((agent) => {
-          const item = inventoryQuery.data?.targets.find((candidate) => candidate.agent === agent);
-          return (
-            <button
-              aria-pressed={agent === selectedAgent}
-              className={agent === selectedAgent ? "agent-tab active" : "agent-tab"}
-              key={agent}
-              onClick={() => {
-                setSelectedAgent(agent);
-                setNotice(null);
-              }}
-              type="button"
-            >
-              <span className={`agent-mark ${agent}`}>{agentMarks[agent]}</span>
-              <span>{item?.label ?? agent}</span>
-              <i className={item?.installed ? "agent-dot installed" : "agent-dot"} />
-            </button>
-          );
-        })}
-      </nav>
-
       {error && <div className="audit-error">{String(error)}</div>}
       {notice && <div className="agent-notice"><Check size={15} />{notice}</div>}
       {inventoryQuery.isLoading && <div className="skill-state">{uiText.agents.loading}</div>}
@@ -208,7 +189,7 @@ export function AgentConfigManager({ uiText }: { uiText: UiText }) {
         <>
           <section className="agent-runtime-card">
             <div className="agent-runtime-heading">
-              <span className={`agent-mark large ${target.agent}`}>{agentMarks[target.agent]}</span>
+              <span className={`agent-mark large ${target.agent}`}>{agentMeta[target.agent].mark}</span>
               <div>
                 <strong>{target.label}</strong>
                 <span className={target.installed ? "agent-install-status installed" : "agent-install-status"}>
@@ -343,7 +324,7 @@ function AgentProfileDialog({
             <p className="eyebrow">{uiText.agents.eyebrow}</p>
             <h2>{input.id ? uiText.agents.editTitle : uiText.agents.createTitle}</h2>
           </div>
-          <span className={`agent-mark ${input.agent}`}>{agentMarks[input.agent]}</span>
+          <span className={`agent-mark ${input.agent}`}>{agentMeta[input.agent].mark}</span>
         </div>
 
         <div className="agent-form-grid">

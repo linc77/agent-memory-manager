@@ -1,4 +1,5 @@
 pub mod agent_config;
+pub mod mcp_manager;
 pub mod memory;
 pub mod skill_manager;
 
@@ -31,7 +32,9 @@ pub fn run() {
             agent_config::save_agent_provider_profile,
             agent_config::delete_agent_provider_profile,
             agent_config::activate_agent_provider_profile,
+            mcp_manager::load_mcp_inventory,
             memory::commands::scan_memories,
+            memory::commands::load_agent_memory_snapshot,
             memory::commands::get_source_excerpt,
             memory::commands::draft_correction,
             memory::commands::draft_correction_from_content,

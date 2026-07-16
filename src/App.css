@@ -45,7 +45,8 @@ button {
 }
 
 .app-shell.skills-mode,
-.app-shell.agent-mode {
+.app-shell.agent-mode,
+.app-shell.mcp-mode {
   grid-template-columns: 240px 8px minmax(420px, 1fr) !important;
 }
 
@@ -80,30 +81,165 @@ button {
   background: rgba(246, 247, 249, 0.94);
 }
 
-.brand {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 18px 16px 16px;
-}
-
-.brand div {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.brand strong {
-  font-size: 15px;
-}
-
-.brand span,
 .sidebar-footer span,
 .entry-card footer,
 .source-card span,
 .inspector-panel span {
   color: #6f7785;
   font-size: 12px;
+}
+
+.agent-context {
+  position: relative;
+  z-index: 12;
+  padding: 12px 10px 14px;
+}
+
+.agent-context-trigger {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 9px;
+  color: #1f2937;
+  text-align: left;
+  border: 1px solid #d8dde6;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 100ms ease;
+}
+
+.agent-context-trigger:hover,
+.agent-context-trigger.open {
+  border-color: #aeb7c5;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.08);
+}
+
+.agent-context-trigger:active {
+  transform: translateY(1px);
+}
+
+.agent-context-trigger > svg {
+  color: #7a8494;
+  transition: transform 140ms ease;
+}
+
+.agent-context-trigger.open > svg {
+  transform: rotate(180deg);
+}
+
+.agent-context-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.agent-context-copy strong,
+.agent-context-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-context-copy strong {
+  font-size: 12px;
+}
+
+.agent-context-copy small {
+  color: #7a8494;
+  font-size: 10px;
+}
+
+.agent-context-menu {
+  position: absolute;
+  top: 72px;
+  right: auto;
+  left: 10px;
+  display: grid;
+  gap: 3px;
+  width: calc(100% - 20px);
+  min-width: 210px;
+  padding: 7px;
+  border: 1px solid #d8dde6;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+}
+
+.agent-context-menu-label {
+  padding: 4px 7px 5px;
+  color: #8a93a2;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.agent-context-option {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 16px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 46px;
+  padding: 6px 7px;
+  color: #344054;
+  text-align: left;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.agent-context-option:hover,
+.agent-context-option.active {
+  background: #f0f3f7;
+}
+
+.agent-context-option > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.agent-context-option strong,
+.agent-context-option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-context-option strong {
+  font-size: 12px;
+}
+
+.agent-context-option small {
+  color: #8a93a2;
+  font-size: 9px;
+}
+
+.agent-context-option > svg {
+  color: #2563eb;
+}
+
+.agent-context-manage {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+  margin-top: 4px;
+  padding: 7px 9px;
+  color: #475467;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid #eaecf0;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.agent-context-manage:hover {
+  color: #1d4ed8;
 }
 
 .topic-nav {
@@ -1361,42 +1497,6 @@ h2 {
   box-shadow: 0 7px 18px rgba(249, 115, 22, 0.22);
 }
 
-.agent-switcher {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(150px, 1fr));
-  gap: 4px;
-  width: min(660px, 100%);
-  margin: 8px auto 24px;
-  padding: 5px;
-  border: 1px solid #e0e4ea;
-  border-radius: 14px;
-  background: #e9ecf1;
-}
-
-.agent-tab {
-  position: relative;
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  justify-content: center;
-  min-height: 46px;
-  color: #667085;
-  font-weight: 700;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-}
-
-.agent-tab:hover {
-  color: #344054;
-}
-
-.agent-tab.active {
-  color: #101828;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
-}
-
 .agent-mark {
   display: inline-grid;
   place-items: center;
@@ -1426,18 +1526,6 @@ h2 {
   height: 40px;
   font-size: 17px;
   border-radius: 11px;
-}
-
-.agent-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #cbd5e1;
-}
-
-.agent-dot.installed {
-  background: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
 }
 
 .agent-runtime-card {
@@ -1699,6 +1787,141 @@ h2 {
   padding-top: 3px;
 }
 
+.mcp-manager {
+  display: block;
+  padding: 26px clamp(22px, 4vw, 56px) 40px;
+  background: #f5f6f8;
+}
+
+.mcp-toolbar {
+  align-items: flex-start;
+}
+
+.mcp-overview {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 13px 15px;
+  border: 1px solid #dfe3ea;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.mcp-overview > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #667085;
+}
+
+.mcp-overview strong {
+  color: #111827;
+  font-size: 20px;
+}
+
+.mcp-overview p {
+  margin: 0;
+  color: #7a8494;
+  font-size: 11px;
+}
+
+.mcp-server-list {
+  display: grid;
+  gap: 9px;
+}
+
+.mcp-server-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 13px;
+  align-items: center;
+  min-height: 84px;
+  padding: 14px 16px;
+  border: 1px solid #dfe3ea;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.mcp-transport {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: #475467;
+  border: 1px solid #dfe3ea;
+  border-radius: 10px;
+  background: #f7f8fa;
+}
+
+.mcp-transport.http,
+.mcp-transport.sse {
+  color: #175cd3;
+  background: #eff6ff;
+}
+
+.mcp-server-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.mcp-server-copy > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mcp-server-copy h2 {
+  font-size: 15px;
+}
+
+.mcp-server-copy code {
+  overflow: hidden;
+  color: #667085;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcp-status {
+  padding: 3px 7px;
+  color: #7a8494;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: #f2f4f7;
+}
+
+.mcp-status.enabled {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.mcp-server-meta {
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+  color: #7a8494;
+  font-size: 10px;
+}
+
+.mcp-config-paths {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  color: #7a8494;
+  font-size: 10px;
+}
+
+.mcp-config-paths code {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1100px) {
   .agent-runtime-card {
     align-items: flex-start;
@@ -1711,5 +1934,14 @@ h2 {
 
   .agent-config-path {
     grid-column: 1 / -1;
+  }
+
+  .mcp-server-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .mcp-server-meta {
+    grid-column: 2;
+    justify-items: start;
   }
 }

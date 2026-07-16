@@ -194,6 +194,7 @@ fn default_skill_roots(project_root_override: Option<String>) -> Result<Vec<Skil
             &home.join(".claude/skills"),
             "Claude Code",
         ),
+        global_root("hermes", "Hermes", &home.join(".hermes/skills"), "Hermes"),
         global_root(
             "gemini",
             "Gemini CLI",
@@ -223,6 +224,7 @@ fn default_skill_roots(project_root_override: Option<String>) -> Result<Vec<Skil
                 ".claude/skills",
                 "Claude Code",
             ),
+            project_root_entry("project-hermes", &project_root, ".hermes/skills", "Hermes"),
         ]);
     }
 
@@ -625,6 +627,7 @@ mod tests {
         assert_eq!(inventory.provider, "native-filesystem");
         assert!(inventory.capability_count > 0);
         assert!(inventory.copy_count >= inventory.capability_count);
+        assert!(inventory.roots.iter().any(|root| root.id == "hermes"));
         assert!(Path::new(&inventory.snapshot_path).is_file());
     }
 }

@@ -177,11 +177,24 @@ pub fn build_memory_profile(
     entries: &[MemoryEntry],
     risks: &[RiskFlag],
 ) -> Result<MemoryProfile, String> {
+    let profile = build_memory_profile_without_cache(root, sources, entries, risks);
+    cache_memory_profile(root, &profile)
+        .map_err(|err| format!("failed to cache deterministic memory profile: {err}"))?;
+
+    Ok(profile)
+}
+
+pub fn build_memory_profile_without_cache(
+    root: &Path,
+    sources: &[MemorySource],
+    entries: &[MemoryEntry],
+    risks: &[RiskFlag],
+) -> MemoryProfile {
     let current = current_entries(sources, entries, risks);
     let source_hash = source_hash(sources);
     let cache_path = root.join(".amm/profile.json");
     let sections = build_sections(&current);
-    let profile = MemoryProfile {
+    MemoryProfile {
         schema_version: "1".to_string(),
         generated_at: Utc::now().to_rfc3339(),
         source_hash,
@@ -193,12 +206,7 @@ pub fn build_memory_profile(
             input_entries: entries.len(),
             current_entries: current.len(),
         },
-    };
-
-    cache_memory_profile(root, &profile)
-        .map_err(|err| format!("failed to cache deterministic memory profile: {err}"))?;
-
-    Ok(profile)
+    }
 }
 
 fn read_cached_memory_profile(

@@ -10,6 +10,7 @@ Use this index before opening individual loop files. Prefer active records; trea
 
 ## Recent Completed
 
+- `docs/loop/verification/2026-07-16-global-agent-context.md` — replaced the top-left brand with one global Codex / Claude Code / Hermes context and scoped Memory, Skills, MCP, and provider configuration to it.
 - `docs/loop/verification/2026-07-16-agent-configuration-console.md` — added a native Codex / Claude Code / Hermes configuration console with Keychain credentials, backups, atomic writes, preservation tests, and browser verification.
 - `docs/loop/verification/2026-07-13-native-skill-discovery.md` — replaced the initial competitor CLI adapter with AMM-owned native Skill discovery, capability/copy identity, snapshot, UI, tests, and live desktop verification.
 - `docs/loop/verification/2026-07-12-skill-management.md` — historical first Skills slice; its SkillManager CLI dependency was superseded by native discovery on 2026-07-13.

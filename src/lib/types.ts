@@ -306,3 +306,30 @@ export interface AgentActivationResult {
   backupPath: string | null;
   reloadHint: string;
 }
+
+export interface AgentMemorySnapshot {
+  agent: AgentKind;
+  writable: boolean;
+  scan: ScanResult;
+  profile: MemoryProfile;
+}
+
+export type McpScope = "global" | "project";
+export type McpTransport = "stdio" | "http" | "sse" | "unknown";
+
+export interface McpServer {
+  id: string;
+  name: string;
+  scope: McpScope;
+  scopeLabel: string;
+  transport: McpTransport;
+  endpoint: string;
+  enabled: boolean;
+}
+
+export interface McpInventory {
+  generatedAt: string;
+  agent: AgentKind;
+  configPaths: string[];
+  servers: McpServer[];
+}

@@ -16,6 +16,7 @@ import {
   getMemoryProfileGeneration,
   isFixtureMode,
   loadMemoryProfile,
+  loadAgentMemorySnapshot,
   openSourceFile,
   scanMemories,
   startCodexAudit,
@@ -38,7 +39,9 @@ import {
 } from "./lib/i18n";
 import { resolveMemoryTruth } from "./lib/memoryTruth";
 import type { MemoryView } from "./lib/memoryViews";
+import { agentMeta, readStoredAgent, writeStoredAgent } from "./lib/agentScope";
 import type {
+  AgentKind,
   CodexAuditMode,
   CodexAuditRun,
   CodexAuditTask,
@@ -52,6 +55,7 @@ import { CorrectionDialog } from "./components/CorrectionDialog";
 import { AgentConfigManager } from "./components/AgentConfigManager";
 import { Inspector } from "./components/Inspector";
 import { KnowledgeBoard } from "./components/KnowledgeBoard";
+import { McpManager } from "./components/McpManager";
 import { Sidebar } from "./components/Sidebar";
 import { SkillManager } from "./components/SkillManager";
 import "./App.css";
@@ -65,6 +69,7 @@ function App() {
   const fixtureMode = isFixtureMode();
   const [locale, setLocale] = useState<Locale>(() => readStoredLocale());
   const uiText = useMemo(() => getUiText(locale), [locale]);
+  const [selectedAgent, setSelectedAgent] = useState<AgentKind>(() => readStoredAgent());
   const [activeTopic, setActiveTopic] = useState<MemoryView>("overview");
   const [query, setQuery] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | undefined>();
@@ -81,6 +86,8 @@ function App() {
   const [draggingDivider, setDraggingDivider] = useState<PaneDivider | null>(null);
   const auditContextRef = useRef<{ mode: CodexAuditMode }>({ mode: auditMode });
   auditContextRef.current = { mode: auditMode };
+  const selectedAgentRef = useRef(selectedAgent);
+  selectedAgentRef.current = selectedAgent;
   const dragRef = useRef<{
     divider: PaneDivider;
     startX: number;
@@ -89,36 +96,55 @@ function App() {
   } | null>(null);
 
   const scanQuery = useQuery({
-    queryKey: ["memories"],
+    enabled: selectedAgent === "codex",
+    queryKey: ["memories", selectedAgent],
     queryFn: () => scanMemories(),
   });
 
   const profileQuery = useQuery({
-    queryKey: ["memory-profile"],
+    enabled: selectedAgent === "codex",
+    queryKey: ["memory-profile", selectedAgent],
     queryFn: () => loadMemoryProfile(),
   });
 
+  const agentMemoryQuery = useQuery({
+    enabled: selectedAgent !== "codex",
+    queryKey: ["agent-memory", selectedAgent],
+    queryFn: () => loadAgentMemorySnapshot(selectedAgent),
+  });
+  const scan = selectedAgent === "codex" ? scanQuery.data : agentMemoryQuery.data?.scan;
+  const profile =
+    selectedAgent === "codex" ? profileQuery.data : agentMemoryQuery.data?.profile;
+  const memoryLoading =
+    selectedAgent === "codex"
+      ? scanQuery.isLoading || profileQuery.isLoading
+      : agentMemoryQuery.isLoading;
+  const memoryError =
+    selectedAgent === "codex"
+      ? scanQuery.error ?? profileQuery.error
+      : agentMemoryQuery.error;
+
   const selectedEntry = useMemo(
-    () => scanQuery.data?.entries.find((entry) => entry.id === selectedEntryId),
-    [scanQuery.data?.entries, selectedEntryId],
+    () => scan?.entries.find((entry) => entry.id === selectedEntryId),
+    [scan?.entries, selectedEntryId],
   );
 
-  const truth = useMemo(() => resolveMemoryTruth(scanQuery.data), [scanQuery.data]);
+  const truth = useMemo(() => resolveMemoryTruth(scan), [scan]);
 
   const selectedSource = useMemo(
     () =>
       selectedEntry
-        ? scanQuery.data?.sources.find((source) => source.relativePath === selectedEntry.sourcePath)
+        ? scan?.sources.find((source) => source.relativePath === selectedEntry.sourcePath)
         : undefined,
-    [scanQuery.data?.sources, selectedEntry],
+    [scan?.sources, selectedEntry],
   );
 
   const selectedRisk = useMemo(
     () =>
       selectedEntry
-        ? scanQuery.data?.risks.find((risk) => risk.entryId === selectedEntry.id)
+        ? scan?.risks.find((risk) => risk.entryId === selectedEntry.id)
         : undefined,
-    [scanQuery.data?.risks, selectedEntry],
+    [scan?.risks, selectedEntry],
   );
 
   const selectedTruth = selectedEntry ? truth.byEntryId.get(selectedEntry.id) : undefined;
@@ -128,7 +154,11 @@ function App() {
       draftCorrection(null, "memory-correction", [
         `Review and update memory from ${entry.sourcePath} lines ${entry.startLine}-${entry.endLine}: ${entry.summary}`,
       ]),
-    onSuccess: setDraft,
+    onSuccess: (nextDraft) => {
+      if (selectedAgentRef.current === "codex") {
+        setDraft(nextDraft);
+      }
+    },
   });
 
   const profileCorrectionMutation = useMutation({
@@ -140,26 +170,37 @@ function App() {
             `Evidence ${evidence.sourcePath} lines ${evidence.startLine}-${evidence.endLine}: ${evidence.summary}`,
         ),
       ]),
-    onSuccess: setDraft,
+    onSuccess: (nextDraft) => {
+      if (selectedAgentRef.current === "codex") {
+        setDraft(nextDraft);
+      }
+    },
   });
 
   const writeMutation = useMutation({
     mutationFn: (nextDraft: CorrectionDraft) => writeCorrection(null, nextDraft),
     onSuccess: async (path) => {
+      await Promise.all([scanQuery.refetch(), profileQuery.refetch()]);
+      if (selectedAgentRef.current !== "codex") {
+        return;
+      }
       setDraft(null);
       setLastWritePath(path);
       setActiveTopic("effective");
       setSelectedEntryId(undefined);
       setQuery("");
       setProfileGenerationTask(null);
-      await Promise.all([scanQuery.refetch(), profileQuery.refetch()]);
     },
   });
 
   const suggestedCorrectionMutation = useMutation({
     mutationFn: (correction: SuggestedCorrection) =>
       draftCorrectionFromContent(null, correction.id, correction.content),
-    onSuccess: setDraft,
+    onSuccess: (nextDraft) => {
+      if (selectedAgentRef.current === "codex") {
+        setDraft(nextDraft);
+      }
+    },
   });
 
   function applyAuditTask(task: CodexAuditTask) {
@@ -184,7 +225,7 @@ function App() {
     onSuccess: (task) => {
       setProfileGenerationTask(task);
       if (task.profile) {
-        queryClient.setQueryData(["memory-profile"], task.profile);
+        queryClient.setQueryData(["memory-profile", "codex"], task.profile);
       }
     },
   });
@@ -211,7 +252,7 @@ function App() {
         .then((task) => {
           setProfileGenerationTask(task);
           if (task.profile) {
-            queryClient.setQueryData(["memory-profile"], task.profile);
+            queryClient.setQueryData(["memory-profile", "codex"], task.profile);
           }
         })
         .catch((error) => {
@@ -257,7 +298,7 @@ function App() {
 
   useEffect(() => {
     if (profileGenerationTask?.profile) {
-      queryClient.setQueryData(["memory-profile"], profileGenerationTask.profile);
+      queryClient.setQueryData(["memory-profile", "codex"], profileGenerationTask.profile);
     }
   }, [profileGenerationTask?.profile, queryClient]);
 
@@ -272,10 +313,11 @@ function App() {
     (auditTask?.status === "failed" ? auditTask.error : null);
 
   const isProfileRegenerating =
-    startProfileGenerationMutation.isPending ||
-    cancelProfileGenerationMutation.isPending ||
-    profileGenerationTask?.status === "running" ||
-    profileGenerationTask?.status === "cancelling";
+    selectedAgent === "codex" &&
+    (startProfileGenerationMutation.isPending ||
+      cancelProfileGenerationMutation.isPending ||
+      profileGenerationTask?.status === "running" ||
+      profileGenerationTask?.status === "cancelling");
 
   const isAuditRunning =
     startAuditMutation.isPending ||
@@ -367,12 +409,42 @@ function App() {
     writeStoredLocale(nextLocale);
   }
 
+  function changeAgent(nextAgent: AgentKind) {
+    if (nextAgent === selectedAgent) {
+      return;
+    }
+    if (isAuditRunning) {
+      cancelAuditMutation.mutate();
+    }
+    if (isProfileRegenerating) {
+      cancelProfileGenerationMutation.mutate();
+    }
+    setSelectedAgent(nextAgent);
+    writeStoredAgent(nextAgent);
+    setSelectedEntryId(undefined);
+    setQuery("");
+    setDraft(null);
+    setLastWritePath(null);
+    setAuditRun(null);
+    setAuditTask(null);
+    setProfileGenerationTask(null);
+    draftMutation.reset();
+    profileCorrectionMutation.reset();
+    suggestedCorrectionMutation.reset();
+    writeMutation.reset();
+    if (activeTopic === "audit") {
+      setActiveTopic("overview");
+    }
+  }
+
   return (
     <div
       className={`${draggingDivider ? "app-shell resizing" : "app-shell"}${
         activeTopic === "skillManager" ? " skills-mode" : ""
       }${
         activeTopic === "agentManager" ? " agent-mode" : ""
+      }${
+        activeTopic === "mcpManager" ? " mcp-mode" : ""
       }`}
       style={{ gridTemplateColumns: paneGridTemplate(paneLayout) }}
     >
@@ -380,8 +452,14 @@ function App() {
       <Sidebar
         activeTopic={activeTopic}
         locale={locale}
+        selectedAgent={selectedAgent}
         uiText={uiText}
         onLocaleChange={changeLocale}
+        onManageAgent={() => {
+          setActiveTopic("agentManager");
+          setSelectedEntryId(undefined);
+        }}
+        onSelectAgent={changeAgent}
         onSelectTopic={(topic) => {
           setActiveTopic(topic);
           setSelectedEntryId(undefined);
@@ -391,47 +469,61 @@ function App() {
       {renderPaneResizer("left")}
 
       {activeTopic === "skillManager" ? (
-        <SkillManager uiText={uiText} />
+        <SkillManager selectedAgent={selectedAgent} uiText={uiText} />
+      ) : activeTopic === "mcpManager" ? (
+        <McpManager selectedAgent={selectedAgent} uiText={uiText} />
       ) : activeTopic === "agentManager" ? (
-        <AgentConfigManager uiText={uiText} />
+        <AgentConfigManager selectedAgent={selectedAgent} uiText={uiText} />
       ) : (
-      <KnowledgeBoard
-        activeTopic={activeTopic}
-        auditError={auditError}
-        auditMode={auditMode}
-        auditRun={auditRun}
-        isAuditRunning={isAuditRunning}
-        onAuditModeChange={(mode) => {
-          setAuditMode(mode);
-          setAuditRun(null);
-          setAuditTask(null);
-          startAuditMutation.reset();
-          cancelAuditMutation.reset();
-        }}
-        onQueryChange={setQuery}
-        onRefresh={() => {
-          void scanQuery.refetch();
-          void profileQuery.refetch();
-        }}
-        onDraftProfileCorrection={(section) => profileCorrectionMutation.mutate(section)}
-        onDraftSuggestedCorrection={(correction) => suggestedCorrectionMutation.mutate(correction)}
-        onOpenSource={(path) => openSourceMutation.mutate(path)}
-        onRunCodexAudit={runOrCancelCodexAudit}
-        onCancelProfileGeneration={cancelProfileGeneration}
-        onRegenerateProfile={regenerateProfile}
-        onSelectEntry={(entry) => setSelectedEntryId(entry.id)}
-        query={query}
-        profile={profileQuery.data}
-        profileError={profileQuery.error ?? profileGenerationError}
-        isProfileLoading={profileQuery.isLoading}
-        isProfileRegenerating={isProfileRegenerating}
-        scan={scanQuery.data}
-        selectedEntryId={selectedEntryId}
-        uiText={uiText}
-      />
+        <KnowledgeBoard
+          activeTopic={activeTopic}
+          auditError={selectedAgent === "codex" ? auditError : null}
+          auditMode={auditMode}
+          auditRun={auditRun}
+          isAuditRunning={selectedAgent === "codex" && isAuditRunning}
+          onAuditModeChange={(mode) => {
+            setAuditMode(mode);
+            setAuditRun(null);
+            setAuditTask(null);
+            startAuditMutation.reset();
+            cancelAuditMutation.reset();
+          }}
+          onQueryChange={setQuery}
+          onRefresh={() => {
+            if (selectedAgent === "codex") {
+              void scanQuery.refetch();
+              void profileQuery.refetch();
+            } else {
+              void agentMemoryQuery.refetch();
+            }
+          }}
+          onDraftProfileCorrection={(section) => profileCorrectionMutation.mutate(section)}
+          onDraftSuggestedCorrection={(correction) =>
+            suggestedCorrectionMutation.mutate(correction)
+          }
+          onOpenSource={(path) => openSourceMutation.mutate(path)}
+          onRunCodexAudit={runOrCancelCodexAudit}
+          onCancelProfileGeneration={cancelProfileGeneration}
+          onRegenerateProfile={regenerateProfile}
+          onSelectEntry={(entry) => setSelectedEntryId(entry.id)}
+          query={query}
+          profile={profile}
+          profileError={
+            memoryError ?? (selectedAgent === "codex" ? profileGenerationError : null)
+          }
+          isProfileLoading={memoryLoading}
+          isProfileRegenerating={isProfileRegenerating}
+          scan={scan}
+          selectedEntryId={selectedEntryId}
+          selectedAgent={selectedAgent}
+          writable={selectedAgent === "codex"}
+          uiText={uiText}
+        />
       )}
 
-      {activeTopic !== "skillManager" && activeTopic !== "agentManager" && (
+      {activeTopic !== "skillManager" &&
+        activeTopic !== "agentManager" &&
+        activeTopic !== "mcpManager" && (
         <>
           {renderPaneResizer("right")}
           <Inspector
@@ -440,37 +532,51 @@ function App() {
             risk={selectedRisk}
             source={selectedSource}
             truthItem={selectedTruth}
+            memoryRoot={scan?.root}
+            writable={selectedAgent === "codex"}
             uiText={uiText}
           />
         </>
       )}
 
-      {scanQuery.isLoading && <div className="status-toast">{uiText.app.scanning}</div>}
-      {profileQuery.isLoading && <div className="status-toast">{uiText.memorySummary.loading}</div>}
+      {memoryLoading && (
+        <div className="status-toast">
+          {uiText.app.scanning(agentMeta[selectedAgent].label)}
+        </div>
+      )}
       {isProfileRegenerating && (
         <div className="status-toast">{uiText.memorySummary.loading}</div>
       )}
-      {isAuditRunning && <div className="status-toast">{uiText.board.running}</div>}
-      {lastWritePath && <div className="status-toast">{uiText.app.correctionWritten(lastWritePath)}</div>}
-      {scanQuery.error && <div className="status-toast error">{String(scanQuery.error)}</div>}
-      {profileQuery.error && <div className="status-toast error">{String(profileQuery.error)}</div>}
-      {profileGenerationError && (
+      {selectedAgent === "codex" && isAuditRunning && (
+        <div className="status-toast">{uiText.board.running}</div>
+      )}
+      {selectedAgent === "codex" && lastWritePath && (
+        <div className="status-toast">{uiText.app.correctionWritten(lastWritePath)}</div>
+      )}
+      {memoryError && <div className="status-toast error">{String(memoryError)}</div>}
+      {selectedAgent === "codex" && profileGenerationError && (
         <div className="status-toast error">{String(profileGenerationError)}</div>
       )}
-      {draftMutation.error && <div className="status-toast error">{String(draftMutation.error)}</div>}
-      {profileCorrectionMutation.error && (
+      {selectedAgent === "codex" && draftMutation.error && (
+        <div className="status-toast error">{String(draftMutation.error)}</div>
+      )}
+      {selectedAgent === "codex" && profileCorrectionMutation.error && (
         <div className="status-toast error">{String(profileCorrectionMutation.error)}</div>
       )}
-      {writeMutation.error && <div className="status-toast error">{String(writeMutation.error)}</div>}
-      {auditError && <div className="status-toast error">{String(auditError)}</div>}
+      {selectedAgent === "codex" && writeMutation.error && (
+        <div className="status-toast error">{String(writeMutation.error)}</div>
+      )}
+      {selectedAgent === "codex" && auditError && (
+        <div className="status-toast error">{String(auditError)}</div>
+      )}
       {openSourceMutation.error && (
         <div className="status-toast error">{String(openSourceMutation.error)}</div>
       )}
-      {suggestedCorrectionMutation.error && (
+      {selectedAgent === "codex" && suggestedCorrectionMutation.error && (
         <div className="status-toast error">{String(suggestedCorrectionMutation.error)}</div>
       )}
 
-      {draft && (
+      {selectedAgent === "codex" && draft && (
         <CorrectionDialog
           draft={draft}
           isWriting={writeMutation.isPending}

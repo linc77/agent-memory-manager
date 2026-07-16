@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, FolderOpen, RefreshCw, Search } from "lucide-react";
 import { loadSkillInventory, openSourceFile } from "../lib/api";
+import { agentMeta } from "../lib/agentScope";
 import type { UiText } from "../lib/i18n";
-import type { SkillCapability, SkillCopy } from "../lib/types";
+import { projectSkillInventory } from "../lib/skillInventory";
+import type { AgentKind, SkillCapability, SkillCopy } from "../lib/types";
 
 function matchesCapability(capability: SkillCapability, query: string, tool: string) {
   if (tool && !capability.tools.includes(tool)) {
@@ -32,7 +34,13 @@ function filesystemKind(copy: SkillCopy, uiText: UiText) {
   return copy.filesystemKind === "symlink" ? uiText.skills.symlink : uiText.skills.directory;
 }
 
-export function SkillManager({ uiText }: { uiText: UiText }) {
+export function SkillManager({
+  selectedAgent,
+  uiText,
+}: {
+  selectedAgent: AgentKind;
+  uiText: UiText;
+}) {
   const [query, setQuery] = useState("");
   const [tool, setTool] = useState("");
   const [selectedId, setSelectedId] = useState<string>();
@@ -40,31 +48,44 @@ export function SkillManager({ uiText }: { uiText: UiText }) {
     queryKey: ["skill-inventory"],
     queryFn: () => loadSkillInventory(),
   });
+  const inventory = useMemo(
+    () =>
+      inventoryQuery.data
+        ? projectSkillInventory(inventoryQuery.data, selectedAgent)
+        : undefined,
+    [inventoryQuery.data, selectedAgent],
+  );
+
+  useEffect(() => {
+    setQuery("");
+    setTool("");
+    setSelectedId(undefined);
+  }, [selectedAgent]);
 
   const tools = useMemo(
     () =>
       Array.from(
-        new Set(inventoryQuery.data?.capabilities.flatMap((capability) => capability.tools) ?? []),
+        new Set(inventory?.capabilities.flatMap((capability) => capability.tools) ?? []),
       ).sort(),
-    [inventoryQuery.data?.capabilities],
+    [inventory?.capabilities],
   );
   const capabilities = useMemo(
     () =>
-      (inventoryQuery.data?.capabilities ?? []).filter((capability) =>
+      (inventory?.capabilities ?? []).filter((capability) =>
         matchesCapability(capability, query, tool),
       ),
-    [inventoryQuery.data?.capabilities, query, tool],
+    [inventory?.capabilities, query, tool],
   );
   const selectedCapability =
     capabilities.find((capability) => capability.id === selectedId) ?? capabilities[0];
-  const activeRoots = inventoryQuery.data?.roots.filter((root) => root.exists) ?? [];
+  const activeRoots = inventory?.roots.filter((root) => root.exists) ?? [];
 
   return (
     <main className="board skill-manager">
       <header className="toolbar skill-toolbar">
         <div>
           <p className="eyebrow">{uiText.skills.eyebrow}</p>
-          <h1>{uiText.skills.title}</h1>
+          <h1>{agentMeta[selectedAgent].label} · {uiText.skills.title}</h1>
           <span className="toolbar-meta">{uiText.skills.subtitle}</span>
         </div>
         <button
@@ -81,24 +102,24 @@ export function SkillManager({ uiText }: { uiText: UiText }) {
       {inventoryQuery.error && <div className="audit-error">{String(inventoryQuery.error)}</div>}
       {inventoryQuery.isLoading && <div className="skill-state">{uiText.skills.loading}</div>}
 
-      {inventoryQuery.data && (
+      {inventory && (
         <>
           <section className="skill-stats" aria-label={uiText.skills.title}>
             <article>
               <span>{uiText.skills.capabilities}</span>
-              <strong>{inventoryQuery.data.capabilityCount}</strong>
+              <strong>{inventory.capabilityCount}</strong>
             </article>
             <article>
               <span>{uiText.skills.discoveredCopies}</span>
-              <strong>{inventoryQuery.data.copyCount}</strong>
+              <strong>{inventory.copyCount}</strong>
             </article>
             <article>
               <span>{uiText.skills.duplicateGroups}</span>
-              <strong>{inventoryQuery.data.duplicateGroupCount}</strong>
+              <strong>{inventory.duplicateGroupCount}</strong>
             </article>
             <article>
               <span>{uiText.skills.invalidCopies}</span>
-              <strong>{inventoryQuery.data.invalidCount}</strong>
+              <strong>{inventory.invalidCount}</strong>
             </article>
           </section>
 
@@ -139,12 +160,12 @@ export function SkillManager({ uiText }: { uiText: UiText }) {
 
           <div className="skill-read-only">
             <span>{uiText.skills.readOnly}</span>
-            <span title={inventoryQuery.data.snapshotPath}>
-              {uiText.skills.snapshot}: {inventoryQuery.data.snapshotPath}
+            <span title={inventory.snapshotPath}>
+              {uiText.skills.snapshot}: {inventory.snapshotPath}
             </span>
           </div>
-          {inventoryQuery.data.snapshotError && (
-            <div className="audit-error">{inventoryQuery.data.snapshotError}</div>
+          {inventory.snapshotError && (
+            <div className="audit-error">{inventory.snapshotError}</div>
           )}
 
           <section className="skill-workspace">

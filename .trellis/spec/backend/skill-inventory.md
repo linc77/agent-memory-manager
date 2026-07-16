@@ -37,6 +37,14 @@ loadSkillInventory(projectRootOverride: string | null = null): Promise<SkillInve
   counts, roots, and capabilities.
 - Snapshot: `~/.agent-memory-manager/skill-inventory.json`.
 - Serialization: Rust fields cross Tauri as camelCase.
+- Native Hermes roots: `~/.hermes/skills` and project `.hermes/skills`.
+- Frontend Agent projections are derived from copies, never by relabeling the
+  aggregate inventory:
+  - Codex: `Agents` + `Codex`.
+  - Claude Code: `Agents` + `Claude Code`.
+  - Hermes: `Hermes`.
+- After projection, recompute capability/copy/duplicate/invalid counts, tools,
+  roots, and aggregate health from the remaining copies.
 
 ## 4. Validation & Error Matrix
 
@@ -67,6 +75,9 @@ loadSkillInventory(projectRootOverride: string | null = null): Promise<SkillInve
 - Write the AMM snapshot and preserve live results on snapshot failure.
 - Exercise real-machine discovery without a competitor CLI.
 - Verify TypeScript fixture capability/copy counts and Tauri invocation args.
+- Verify Agent projection removes foreign roots/copies and recomputes every
+  aggregate count.
+- Verify real discovery declares global and project Hermes roots.
 
 ## 7. Wrong vs Correct
 

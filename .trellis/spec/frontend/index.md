@@ -14,6 +14,7 @@ This directory contains guidelines for frontend development. Fill in each file w
 
 | Guide | Description | Status |
 |-------|-------------|--------|
+| [Global Agent Context](./agent-context.md) | Persistent Agent selection and workspace isolation | Active |
 | [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
 | [Component Guidelines](./component-guidelines.md) | Component patterns, props, composition | To fill |
 | [Hook Guidelines](./hook-guidelines.md) | Custom hooks, data fetching patterns | To fill |
@@ -37,3 +38,14 @@ The goal is to help AI assistants and new team members understand how YOUR proje
 ---
 
 **Language**: All documentation should be written in **English**.
+
+## Pre-Development Checklist
+
+- Read `agent-context.md` before changing Agent selection, Agent-scoped query
+  keys, Memory/Skills/MCP workspaces, or provider configuration navigation.
+
+## Quality Check
+
+- Run `pnpm exec vitest run src/App.fixture.test.tsx src/lib/api.test.ts`.
+- Assert non-Codex views contain no Codex-only write or Audit actions.
+- Verify the selected Agent survives reload and scopes all visible workspaces.

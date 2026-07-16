@@ -10,20 +10,25 @@ export function Inspector({
   source,
   risk,
   truthItem,
+  memoryRoot,
   uiText,
+  writable,
   onDraftCorrection,
 }: {
   entry?: MemoryEntry;
   source?: MemorySource;
   risk?: RiskFlag;
   truthItem?: MemoryTruthItem;
+  memoryRoot?: string;
   uiText: UiText;
+  writable: boolean;
   onDraftCorrection: (entry: MemoryEntry) => void;
 }) {
   const excerptQuery = useQuery({
-    enabled: Boolean(entry && source),
-    queryKey: ["excerpt", source?.path, entry?.startLine, entry?.endLine],
-    queryFn: () => getSourceExcerpt(null, source!.path, entry!.startLine, entry!.endLine),
+    enabled: Boolean(entry && source && memoryRoot),
+    queryKey: ["excerpt", memoryRoot, source?.path, entry?.startLine, entry?.endLine],
+    queryFn: () =>
+      getSourceExcerpt(memoryRoot ?? null, source!.path, entry!.startLine, entry!.endLine),
   });
 
   const openSourceMutation = useMutation({
@@ -101,10 +106,12 @@ export function Inspector({
       </section>
 
       <div className="inspector-actions">
-        <button className="primary-button" onClick={() => onDraftCorrection(entry)} type="button">
-          <PencilLine size={16} />
-          {uiText.inspector.draftCorrection}
-        </button>
+        {writable && (
+          <button className="primary-button" onClick={() => onDraftCorrection(entry)} type="button">
+            <PencilLine size={16} />
+            {uiText.inspector.draftCorrection}
+          </button>
+        )}
         <button
           className="secondary-button"
           disabled={!source || openSourceMutation.isPending}
