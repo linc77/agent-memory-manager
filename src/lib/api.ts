@@ -12,6 +12,7 @@ import type {
   McpInventory,
   ScanResult,
   SaveAgentProfileInput,
+  SaveSkillManifestInput,
   SkillInventory,
 } from "./types";
 import { demoAuditRun, demoMemoryProfile, demoScanResult } from "./demoData";
@@ -173,6 +174,17 @@ export function loadSkillInventory(projectRootOverride: string | null = null) {
   }
 
   return desktopApi().skills.load(projectRootOverride);
+}
+
+export function saveSkillManifest(
+  input: SaveSkillManifestInput,
+  projectRootOverride: string | null = null,
+) {
+  if (isFixtureMode()) {
+    return Promise.resolve(structuredClone(fixtureSkillInventory));
+  }
+
+  return desktopApi().skills.saveManifest(input, projectRootOverride);
 }
 
 export function loadAgentConfigInventory() {
@@ -513,6 +525,7 @@ const fixtureSkillInventory: SkillInventory = {
           markdown: "# Find Skills\n\nDiscover and install Skills for the selected Agent.",
           path: "/Users/demo/.agents/skills/find-skills",
           manifestPath: "/Users/demo/.agents/skills/find-skills/SKILL.md",
+          source: "---\nname: find-skills\ndescription: Discover installable agent skills.\n---\n# Find Skills\n\nDiscover and install Skills for the selected Agent.\n",
           tool: "Agents",
           scope: "global",
           filesystemKind: "symlink",
@@ -528,6 +541,7 @@ const fixtureSkillInventory: SkillInventory = {
           markdown: "# Find Skills\n\nDiscover and install Skills for the selected Agent.",
           path: "/Users/demo/project/.codex/skills/find-skills",
           manifestPath: "/Users/demo/project/.codex/skills/find-skills/SKILL.md",
+          source: "---\nname: find-skills\ndescription: Discover installable agent skills.\n---\n# Find Skills\n\nDiscover and install Skills for the selected Agent.\n",
           tool: "Codex",
           scope: "project",
           filesystemKind: "directory",
@@ -555,6 +569,7 @@ const fixtureSkillInventory: SkillInventory = {
           markdown: "# Diagnose\n\nUse a disciplined diagnosis loop.",
           path: "/Users/demo/.agents/skills/diagnose",
           manifestPath: "/Users/demo/.agents/skills/diagnose/SKILL.md",
+          source: "---\nname: diagnose\ndescription: Diagnose hard bugs with a disciplined feedback loop.\n---\n# Diagnose\n\nUse a disciplined diagnosis loop.\n",
           tool: "Agents",
           scope: "global",
           filesystemKind: "directory",
@@ -582,6 +597,7 @@ const fixtureSkillInventory: SkillInventory = {
           markdown: "",
           path: "/Users/demo/.agents/skills/metadata-only",
           manifestPath: "/Users/demo/.agents/skills/metadata-only/SKILL.md",
+          source: "---\nname: metadata-only\ndescription: A Skill with required metadata and no Markdown body.\n---\n",
           tool: "Agents",
           scope: "global",
           filesystemKind: "directory",
@@ -609,6 +625,7 @@ const fixtureSkillInventory: SkillInventory = {
           markdown: "# Broken Skill\n\nThis fixture has invalid frontmatter.",
           path: "/Users/demo/.agents/skills/broken-skill",
           manifestPath: "/Users/demo/.agents/skills/broken-skill/SKILL.md",
+          source: "# Broken Skill\n\nThis fixture has invalid frontmatter.\n",
           tool: "Agents",
           scope: "global",
           filesystemKind: "directory",
@@ -636,6 +653,7 @@ const fixtureSkillInventory: SkillInventory = {
           markdown: "# Claude Helper\n\nA Claude Code-only fixture Skill.",
           path: "/Users/demo/.claude/skills/claude-helper",
           manifestPath: "/Users/demo/.claude/skills/claude-helper/SKILL.md",
+          source: "---\nname: claude-helper\ndescription: A Claude Code-only fixture Skill.\n---\n# Claude Helper\n\nA Claude Code-only fixture Skill.\n",
           tool: "Claude Code",
           scope: "global",
           filesystemKind: "directory",
@@ -663,6 +681,7 @@ const fixtureSkillInventory: SkillInventory = {
           markdown: "# Hermes Helper\n\nA Hermes-only fixture Skill.",
           path: "/Users/demo/.hermes/skills/hermes-helper",
           manifestPath: "/Users/demo/.hermes/skills/hermes-helper/SKILL.md",
+          source: "---\nname: hermes-helper\ndescription: A Hermes-only fixture Skill.\n---\n# Hermes Helper\n\nA Hermes-only fixture Skill.\n",
           tool: "Hermes",
           scope: "global",
           filesystemKind: "directory",

@@ -12,6 +12,7 @@ import {
   revealSourceSchema,
   rootOverrideSchema,
   saveAgentProfileSchema,
+  saveSkillManifestSchema,
   skillInputSchema,
   sourceExcerptSchema,
   writeCorrectionSchema,
@@ -30,7 +31,7 @@ import {
 } from "../services/memory/generation";
 import { resolveMemoryRoot } from "../services/memory/paths";
 import { loadMcpInventory } from "../services/mcp";
-import { loadSkillInventory } from "../services/skills";
+import { loadSkillInventory, saveSkillManifest } from "../services/skills";
 import { isTrustedRendererUrl } from "../windowPolicy";
 
 const { autoUpdater } = electronUpdater;
@@ -98,6 +99,8 @@ export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: s
     loadAgentMemorySnapshot(agent));
   handle(channels.loadSkillInventory, skillInputSchema, window, developmentOrigin, ({ projectRootOverride }) =>
     loadSkillInventory(projectRootOverride));
+  handle(channels.saveSkillManifest, saveSkillManifestSchema, window, developmentOrigin, ({ input, projectRootOverride }) =>
+    saveSkillManifest(input, projectRootOverride));
   handle(channels.loadMcpInventory, agentInputSchema, window, developmentOrigin, ({ agent }) =>
     loadMcpInventory(agent));
   handle(channels.generateMemoryProfile, rootOverrideSchema, window, developmentOrigin, ({ rootOverride }) =>

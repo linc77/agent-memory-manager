@@ -10,6 +10,7 @@ import {
   openSourceFile,
   runCodexAudit,
   scanMemories,
+  saveSkillManifest,
   writeCorrection,
 } from "./api";
 
@@ -23,7 +24,11 @@ Object.defineProperty(window, "backplane", {
       scan: (rootOverride: string | null) => invokeMock("scan_memories", { rootOverride }),
       loadAgentSnapshot: (agent: string) => invokeMock("load_agent_memory_snapshot", { agent }),
     },
-    skills: { load: (projectRootOverride: string | null) => invokeMock("load_skill_inventory", { projectRootOverride }) },
+    skills: {
+      load: (projectRootOverride: string | null) => invokeMock("load_skill_inventory", { projectRootOverride }),
+      saveManifest: (input: unknown, projectRootOverride: string | null) =>
+        invokeMock("save_skill_manifest", { input, projectRootOverride }),
+    },
     agentConfig: {
       load: () => invokeMock("load_agent_config_inventory"),
       activate: (agent: string, profileId: string) => invokeMock("activate_agent_provider_profile", { agent, profileId }),
@@ -130,6 +135,22 @@ describe("desktop skill API", () => {
 
     await expect(loadSkillInventory()).resolves.toBe(inventory);
     expect(invokeMock).toHaveBeenCalledWith("load_skill_inventory", {
+      projectRootOverride: null,
+    });
+  });
+
+  it("invokes the native Skill save command", async () => {
+    const inventory = { provider: "native-filesystem", capabilities: [] };
+    const input = {
+      manifestPath: "/tmp/demo/SKILL.md",
+      source: "---\nname: demo\ndescription: Demo\n---\n",
+      expectedContentHash: "a".repeat(64),
+    };
+    invokeMock.mockResolvedValue(inventory);
+
+    await expect(saveSkillManifest(input)).resolves.toBe(inventory);
+    expect(invokeMock).toHaveBeenCalledWith("save_skill_manifest", {
+      input,
       projectRootOverride: null,
     });
   });

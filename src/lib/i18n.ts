@@ -82,6 +82,14 @@ export interface UiText {
     backToAll: string;
     documentation: string;
     noDocumentation: string;
+    editDocumentation: string;
+    editCopy: string;
+    sourceEditor: string;
+    cancelEdit: string;
+    saveChanges: string;
+    savingChanges: string;
+    savedChanges: string;
+    saveFailed: (error: string) => string;
     openDetails: (name: string) => string;
     copyCount: (count: number) => string;
   };
@@ -377,7 +385,7 @@ const zhCN: UiText = {
     refresh: "刷新",
     loading: "正在原生扫描 Skill...",
     empty: "没有匹配的能力。",
-    readOnly: "当前只读扫描外部目录；Backplane 不会复制、修改或删除这些 Skill。",
+    readOnly: "Backplane 扫描外部目录，并允许你明确选择一份副本进行编辑；不会自动复制或删除 Skill。",
     tools: "可见工具",
     copyLocations: "发现位置",
     path: "本地路径",
@@ -397,6 +405,14 @@ const zhCN: UiText = {
     backToAll: "返回全部 Skills",
     documentation: "Skill 文档",
     noDocumentation: "这个 Skill 暂无可显示的 Markdown 内容。",
+    editDocumentation: "编辑",
+    editCopy: "编辑副本",
+    sourceEditor: "SKILL.md 内容",
+    cancelEdit: "取消",
+    saveChanges: "保存",
+    savingChanges: "保存中...",
+    savedChanges: "已保存到所选 SKILL.md。",
+    saveFailed: (error) => `保存失败：${error}`,
     openDetails: (name) => `查看 ${name} 详情`,
     copyCount: (count) => `${count} 份副本`,
   },
@@ -681,7 +697,7 @@ const enUS: UiText = {
     refresh: "Refresh",
     loading: "Scanning Skills natively...",
     empty: "No matching capabilities.",
-    readOnly: "External roots are scanned read-only; Backplane does not copy, edit, or delete these Skills.",
+    readOnly: "Backplane scans external roots and lets you explicitly edit one selected copy; it never copies or deletes Skills automatically.",
     tools: "Visible tools",
     copyLocations: "Discovered locations",
     path: "Local path",
@@ -701,6 +717,14 @@ const enUS: UiText = {
     backToAll: "Back to all Skills",
     documentation: "Skill documentation",
     noDocumentation: "This Skill has no Markdown content to display.",
+    editDocumentation: "Edit",
+    editCopy: "Copy to edit",
+    sourceEditor: "SKILL.md content",
+    cancelEdit: "Cancel",
+    saveChanges: "Save",
+    savingChanges: "Saving...",
+    savedChanges: "Saved to the selected SKILL.md.",
+    saveFailed: (error) => `Save failed: ${error}`,
     openDetails: (name) => `View ${name} details`,
     copyCount: (count) => `${count} copies`,
   },

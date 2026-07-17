@@ -8,6 +8,7 @@ import type {
   SkillInventory,
   SkillRootStatus,
   SkillScope,
+  SaveSkillManifestInput,
 } from "../../../src/lib/types";
 import { atomicWrite, isoNow, sha256 } from "./shared";
 
@@ -135,10 +136,12 @@ async function readSkillCopy(root: SkillRoot, manifestPath: string): Promise<Ski
   let bytes = Buffer.alloc(0);
   let manifest: { name: string; description: string; markdown: string } | null = null;
   let markdown = "";
+  let source = "";
   let issue: string | null = null;
   try {
     bytes = await readFile(manifestPath);
     const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    source = text;
     markdown = text.trim();
     manifest = parseSkillManifest(text);
     markdown = manifest.markdown;
@@ -152,6 +155,7 @@ async function readSkillCopy(root: SkillRoot, manifestPath: string): Promise<Ski
     markdown,
     path,
     manifestPath,
+    source,
     tool: root.tool,
     scope: root.scope,
     filesystemKind,
@@ -228,4 +232,35 @@ export async function loadSkillInventory(projectRootOverride?: string | null) {
     await defaultSkillRoots(projectRootOverride),
     join(homedir(), ".agent-backplane", "skill-inventory.json"),
   );
+}
+
+export async function saveSkillManifest(
+  input: SaveSkillManifestInput,
+  projectRootOverride?: string | null,
+  snapshotPath = join(homedir(), ".agent-backplane", "skill-inventory.json"),
+) {
+  const roots = await defaultSkillRoots(projectRootOverride);
+  const requestedPath = resolve(input.manifestPath);
+  let discovered = false;
+  for (const root of roots) {
+    if (!(await isDirectory(root.path))) continue;
+    const manifests: string[] = [];
+    await collectManifests(root.path, 0, manifests);
+    if (manifests.some((manifest) => resolve(manifest) === requestedPath)) {
+      discovered = true;
+      break;
+    }
+  }
+  if (!discovered) {
+    throw new Error("Skill manifest is outside the discovered roots");
+  }
+
+  const current = await readFile(requestedPath);
+  if (sha256(current) !== input.expectedContentHash) {
+    throw new Error("Skill manifest changed since it was loaded");
+  }
+  parseSkillManifest(input.source);
+  const mode = (await stat(requestedPath)).mode & 0o777;
+  await atomicWrite(requestedPath, input.source, mode);
+  return buildSkillInventory(roots, snapshotPath);
 }

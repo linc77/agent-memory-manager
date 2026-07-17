@@ -19,6 +19,7 @@ export const channels = {
   cancelCodexAudit: "audit:cancel",
   runCodexAudit: "audit:run",
   loadSkillInventory: "skills:load",
+  saveSkillManifest: "skills:save-manifest",
   loadAgentConfigInventory: "agent-config:load",
   saveAgentProviderProfile: "agent-config:save",
   deleteAgentProviderProfile: "agent-config:delete",

@@ -217,6 +217,7 @@ export interface SkillCopy {
   markdown: string;
   path: string;
   manifestPath: string;
+  source: string;
   tool: string;
   scope: SkillScope;
   filesystemKind: SkillFilesystemKind;
@@ -249,6 +250,12 @@ export interface SkillInventory {
   invalidCount: number;
   roots: SkillRootStatus[];
   capabilities: SkillCapability[];
+}
+
+export interface SaveSkillManifestInput {
+  manifestPath: string;
+  source: string;
+  expectedContentHash: string;
 }
 
 export type AgentKind = "codex" | "claudeCode" | "hermes";

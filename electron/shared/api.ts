@@ -11,6 +11,7 @@ import type {
   MemoryProfile,
   MemoryProfileGenerationTask,
   SaveAgentProfileInput,
+  SaveSkillManifestInput,
   ScanResult,
   SkillInventory,
 } from "../../src/lib/types";
@@ -57,6 +58,10 @@ export interface BackplaneDesktopApi {
   };
   skills: {
     load(projectRootOverride?: string | null): Promise<SkillInventory>;
+    saveManifest(
+      input: SaveSkillManifestInput,
+      projectRootOverride?: string | null,
+    ): Promise<SkillInventory>;
   };
   agentConfig: {
     load(): Promise<AgentConfigInventory>;

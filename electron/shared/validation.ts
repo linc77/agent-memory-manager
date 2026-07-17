@@ -5,6 +5,14 @@ export const auditModeSchema = z.enum(["curated", "full"]);
 export const rootOverrideSchema = z.object({ rootOverride: z.string().nullable().optional() }).strict();
 export const agentInputSchema = z.object({ agent: agentSchema }).strict();
 export const skillInputSchema = z.object({ projectRootOverride: z.string().nullable().optional() }).strict();
+export const saveSkillManifestSchema = z.object({
+  projectRootOverride: z.string().nullable().optional(),
+  input: z.object({
+    manifestPath: z.string().min(1),
+    source: z.string().min(1).max(2_000_000),
+    expectedContentHash: z.string().regex(/^[a-f0-9]{64}$/),
+  }).strict(),
+}).strict();
 export const sourceExcerptSchema = z.object({
   rootOverride: z.string().nullable(),
   path: z.string().min(1),

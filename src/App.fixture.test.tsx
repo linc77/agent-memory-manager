@@ -112,6 +112,7 @@ describe("App browser fixture mode", () => {
     const {
       findByPlaceholderText,
       findByRole,
+      findByText,
       getAllByText,
       container,
       queryByRole,
@@ -129,11 +130,29 @@ describe("App browser fixture mode", () => {
 
     fireEvent.click(await findByRole("button", { name: "查看 find-skills 详情" }));
     expect(await findByRole("heading", { name: "find-skills" })).toBeInTheDocument();
+    const locations = container.querySelector(".skill-locations");
+    const detailHeader = container.querySelector(".skill-detail-header");
+    expect(locations).not.toBeNull();
+    expect(detailHeader).not.toBeNull();
+    if (!locations || !detailHeader) {
+      throw new Error("Expected Skill detail sections");
+    }
+    expect(
+      locations.compareDocumentPosition(detailHeader) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(queryByText("名称")).toBeInTheDocument();
     expect(queryByText("说明")).toBeInTheDocument();
     expect(queryByText("Discover installable agent skills.")).toBeInTheDocument();
     expect(await findByRole("heading", { name: "Skill 文档" })).toBeInTheDocument();
     expect(await findByRole("heading", { name: "Find Skills" })).toBeInTheDocument();
+    expect(await findByRole("combobox", { name: "编辑副本" })).toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "编辑" }));
+    const editor = await findByRole("textbox", { name: "SKILL.md 内容" });
+    fireEvent.change(editor, {
+      target: { value: `${(editor as HTMLTextAreaElement).value}\nEdited.\n` },
+    });
+    fireEvent.click(await findByRole("button", { name: "保存" }));
+    expect(await findByText("已保存到所选 SKILL.md。")).toBeInTheDocument();
     fireEvent.click(await findByRole("button", { name: "返回全部 Skills" }));
 
     fireEvent.click(await findByRole("button", { name: "查看 metadata-only 详情" }));

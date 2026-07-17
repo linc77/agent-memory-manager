@@ -414,7 +414,7 @@ describe("App memory clarity", () => {
       expect(getByRole("heading", { name: "Codex 目前这样理解你" })).toBeInTheDocument(),
     );
     expect(getByRole("button", { name: "记忆" })).toBeInTheDocument();
-    expect(queryByText("Backplane")).toBeInTheDocument();
+    expect(queryByText("Backplane")).not.toBeInTheDocument();
     expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
     expect(queryByText("复核队列")).not.toBeInTheDocument();
     expect(queryByText("已加载摘要")).not.toBeInTheDocument();
