@@ -13,6 +13,7 @@ export const channels = {
   getSourceExcerpt: "memory:get-source-excerpt",
   draftCorrection: "memory:draft-correction",
   draftCorrectionFromContent: "memory:draft-correction-from-content",
+  draftRevert: "memory:draft-revert",
   writeCorrection: "memory:write-correction",
   startCodexAudit: "audit:start",
   getCodexAudit: "audit:get",

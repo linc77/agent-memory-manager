@@ -40,6 +40,17 @@ export interface MemoryEntry {
   sourcePath: string;
   startLine: number;
   endLine: number;
+  change?: MemoryChangeMetadata;
+}
+
+export type MemoryChangeOperation = "replace" | "append" | "revert";
+
+export interface MemoryChangeMetadata {
+  id: string;
+  operation: MemoryChangeOperation;
+  targetEntryIds: string[];
+  revertsChangeId: string | null;
+  createdAt: string;
 }
 
 export type RiskKind = "staleConflict" | "coveredByOverride";
@@ -53,9 +64,22 @@ export interface RiskFlag {
 }
 
 export interface CorrectionDraft {
+  agent: AgentKind;
   slug: string;
   content: string;
   targetPath: string;
+  targetSourcePaths: string[];
+  change: MemoryChangeMetadata;
+}
+
+export interface MemoryChangeTarget {
+  entryId: string;
+  sourcePath: string;
+}
+
+export interface MemoryChangeWriteResult {
+  path: string;
+  changeId: string;
 }
 
 export interface ScanResult {
@@ -63,6 +87,13 @@ export interface ScanResult {
   sources: MemorySource[];
   entries: MemoryEntry[];
   risks: RiskFlag[];
+  catalog?: MemoryCatalogStats;
+}
+
+export interface MemoryCatalogStats {
+  indexedAt: string;
+  reusedSources: number;
+  changedSources: number;
 }
 
 export type CodexAuditMode = "curated" | "full";

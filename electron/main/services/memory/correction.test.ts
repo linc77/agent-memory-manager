@@ -2,42 +2,72 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { draftCorrection, getSourceExcerpt, writeCorrection } from "./correction";
+import { draftCorrection, draftRevert, getSourceExcerpt, writeCorrection } from "./correction";
+import { parseEntries } from "./parser";
 
 const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))));
 
 async function temporaryRoot() {
-  const root = await mkdtemp(join(tmpdir(), "amm-correction-"));
+  const root = await mkdtemp(join(tmpdir(), "backplane-memory-change-"));
   roots.push(root);
   return root;
 }
 
-describe("memory correction parity", () => {
-  it("writes a new note under the allowed directory", async () => {
+describe("memory changes", () => {
+  it("writes a targeted Codex change that remains machine-readable", async () => {
     const root = await temporaryRoot();
-    const draft = draftCorrection(root, "Profile Stack", ["Python/Rust is current."]);
-    const path = await writeCorrection(root, draft);
-    expect(dirname(path)).toBe(join(root, "extensions", "ad_hoc", "notes"));
-    expect(await readFile(path, "utf8")).toContain("Python/Rust");
-    expect(await getSourceExcerpt(root, path, 1, 1)).toBe("Memory update request:");
+    const draft = await draftCorrection("codex", root, "Profile Stack", ["Python/Rust is current."], [
+      { entryId: "profile-old", sourcePath: "MEMORY.md" },
+    ]);
+    const result = await writeCorrection(root, draft);
+    const text = await readFile(result.path, "utf8");
+    const [entry] = parseEntries(result.path.split(`${root}/`)[1], text);
+
+    expect(dirname(result.path)).toBe(join(root, "extensions", "ad_hoc", "notes"));
+    expect(entry.change).toMatchObject({ operation: "replace", targetEntryIds: ["profile-old"] });
+    expect(await getSourceExcerpt(root, result.path, 1, 1)).toContain("Agent Backplane change");
   });
 
-  it("rejects writes and excerpts outside the selected root", async () => {
+  it("writes Claude Code changes beside the targeted project memory", async () => {
+    const root = await temporaryRoot();
+    await mkdir(join(root, "project-a", "memory"), { recursive: true });
+    const draft = await draftCorrection("claudeCode", root, "Project", ["Project A is archived."], [
+      { entryId: "project-a", sourcePath: "project-a/memory/MEMORY.md" },
+    ]);
+    const result = await writeCorrection(root, draft);
+    expect(dirname(result.path)).toBe(join(root, "project-a", "memory"));
+  });
+
+  it("appends Hermes changes to its native MEMORY.md", async () => {
+    const root = await temporaryRoot();
+    await writeFile(join(root, "MEMORY.md"), "Existing memory.\n");
+    const draft = await draftCorrection("hermes", root, "Preference", ["Use Chinese output."], [
+      { entryId: "preference", sourcePath: "MEMORY.md" },
+    ]);
+    const result = await writeCorrection(root, draft);
+    const text = await readFile(result.path, "utf8");
+    expect(text).toContain("Existing memory.");
+    expect(text).toContain("agent-backplane-change");
+  });
+
+  it("creates a revert change without deleting history", async () => {
+    const root = await temporaryRoot();
+    const correction = await draftCorrection("codex", root, "Profile", ["New value."], [
+      { entryId: "old", sourcePath: "MEMORY.md" },
+    ]);
+    await writeCorrection(root, correction);
+    const revert = await draftRevert("codex", root, correction.change, correction.targetPath.split(`${root}/`)[1]);
+    const result = await writeCorrection(root, revert);
+    expect((await readFile(result.path, "utf8"))).toContain(`"revertsChangeId":"${correction.change.id}"`);
+  });
+
+  it("rejects writes outside the selected agent memory store", async () => {
     const root = await temporaryRoot();
     const outside = join(root, "..", `outside-${Date.now()}.md`);
-    await writeFile(outside, "outside");
-    const draft = draftCorrection(root, "bad", ["bad"]);
-    await expect(writeCorrection(root, { ...draft, targetPath: outside })).rejects.toThrow("only be written");
-    await expect(getSourceExcerpt(root, outside, 1, 1)).rejects.toThrow("stay inside");
-    await rm(outside, { force: true });
-  });
-
-  it("rejects an existing target", async () => {
-    const root = await temporaryRoot();
-    const draft = draftCorrection(root, "existing", ["new"]);
-    await mkdir(join(root, "extensions/ad_hoc/notes"), { recursive: true });
-    await writeFile(draft.targetPath, "existing");
-    await expect(writeCorrection(root, draft)).rejects.toThrow("already exists");
+    const draft = await draftCorrection("codex", root, "bad", ["bad"], [
+      { entryId: "bad", sourcePath: "MEMORY.md" },
+    ]);
+    await expect(writeCorrection(root, { ...draft, targetPath: outside })).rejects.toThrow("selected agent memory store");
   });
 });

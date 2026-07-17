@@ -26,6 +26,7 @@ import {
   type MemoryTruthModel,
   type MemoryTruthStatus,
 } from "../lib/memoryTruth";
+import { searchMemory } from "../lib/memorySearch";
 import type { UiText } from "../lib/i18n";
 import type {
   CodexAuditMode,
@@ -203,35 +204,6 @@ function renderCorrection(
   );
 }
 
-function sourceMatches(source: MemorySource, lowerQuery: string, uiText: UiText) {
-  return (
-    !lowerQuery ||
-    `${source.relativePath} ${source.kind} ${uiText.sourceKinds[source.kind]} ${source.sha256}`
-      .toLowerCase()
-      .includes(lowerQuery)
-  );
-}
-
-function entryMatches(entry: MemoryEntry, lowerQuery: string) {
-  return (
-    !lowerQuery ||
-    `${entry.title} ${entry.summary} ${entry.searchText} ${entry.sourcePath}`
-      .toLowerCase()
-      .includes(lowerQuery)
-  );
-}
-
-function sectionMatches(section: MemoryProfileSection, lowerQuery: string) {
-  return (
-    !lowerQuery ||
-    `${section.title} ${section.body} ${section.evidence
-      .map((item) => `${item.sourcePath} ${item.summary}`)
-      .join(" ")}`
-      .toLowerCase()
-      .includes(lowerQuery)
-  );
-}
-
 function ProfileEvidenceDetails({
   onOpenSource,
   section,
@@ -329,7 +301,7 @@ function renderMemoryProfile({
               </span>
             )}
           </div>
-          {writable && (
+          {writable && selectedAgent === "codex" && (
             <button
               className="secondary-button compact"
               onClick={isProfileRegenerating ? onCancelProfileGeneration : onRegenerateProfile}
@@ -448,15 +420,14 @@ export function KnowledgeBoard({
   const isAuditView = activeTopic === "audit";
   const isOverview = activeTopic === "overview";
   const showSearch = activeTopic !== "overview" && !isAuditView;
-  const sourceCards = sourcesForView(activeTopic, scan).filter((source) =>
-    sourceMatches(source, lowerQuery, uiText),
-  );
-  const entries = entriesForView(activeTopic, scan).filter((entry) =>
-    entryMatches(entry, lowerQuery),
-  );
-  const profileSections = (profile?.sections ?? []).filter((section) =>
-    sectionMatches(section, lowerQuery),
-  );
+  const searchResult = searchMemory(query, {
+    sources: sourcesForView(activeTopic, scan),
+    entries: entriesForView(activeTopic, scan),
+    sections: profile?.sections ?? [],
+  });
+  const sourceCards = searchResult.sources;
+  const entries = searchResult.entries;
+  const profileSections = searchResult.sections;
   const sources = scan?.sources ?? [];
   const truth = resolveMemoryTruth(scan);
   const boardTitle = uiText.views[activeTopic];

@@ -58,6 +58,13 @@ const scan: ScanResult = {
       sourcePath: "extensions/ad_hoc/notes/profile.md",
       startLine: 1,
       endLine: 3,
+      change: {
+        id: "change-profile",
+        operation: "replace",
+        targetEntryIds: ["profile-old"],
+        revertsChangeId: null,
+        createdAt: "2026-07-17T00:00:00.000Z",
+      },
     },
     {
       id: "activity",
@@ -100,6 +107,50 @@ describe("resolveMemoryTruth", () => {
     expect(truth.review).toHaveLength(0);
   });
 
+  it("keeps unrelated claims current when a correction targets one claim", () => {
+    const projectA = {
+      ...scan.entries[0],
+      id: "project-a",
+      topic: "projects" as const,
+      title: "Project A",
+      summary: "Project A is active.",
+    };
+    const projectB = {
+      ...scan.entries[0],
+      id: "project-b",
+      topic: "projects" as const,
+      title: "Project B",
+      summary: "Project B is active.",
+    };
+    const correction = {
+      ...scan.entries[1],
+      id: "project-a-correction",
+      topic: "overrides" as const,
+      relatedTopics: ["projects" as const],
+      title: "Project A correction",
+      summary: "Project A is archived.",
+      change: {
+        id: "change-project-a",
+        operation: "replace" as const,
+        targetEntryIds: ["project-a"],
+        revertsChangeId: null,
+        createdAt: "2026-07-17T00:00:00.000Z",
+      },
+    };
+
+    const truth = resolveMemoryTruth({
+      ...scan,
+      entries: [projectA, projectB, correction],
+      risks: [],
+    });
+
+    expect(truth.current.map((item) => item.entry.id)).toEqual([
+      "project-a-correction",
+      "project-b",
+    ]);
+    expect(truth.review.map((item) => item.entry.id)).toEqual(["project-a"]);
+  });
+
   it("moves deterministic risk entries into the review queue", () => {
     const truth = resolveMemoryTruth({
       ...scan,
@@ -122,6 +173,68 @@ describe("resolveMemoryTruth", () => {
       decision: "Stack conflict",
       reviewReason: "Older Java/Spring Boot text conflicts with a newer correction.",
     });
+  });
+
+  it("restores a targeted claim after its replacement is reverted", () => {
+    const replacement = scan.entries[1];
+    const revert = {
+      ...replacement,
+      id: "profile-revert",
+      title: "Revert profile correction",
+      change: {
+        id: "change-profile-revert",
+        operation: "revert" as const,
+        targetEntryIds: [],
+        revertsChangeId: replacement.change!.id,
+        createdAt: "2026-07-18T00:00:00.000Z",
+      },
+    };
+    const truth = resolveMemoryTruth({
+      ...scan,
+      entries: [scan.entries[0], replacement, revert],
+      risks: [],
+    });
+
+    expect(truth.current.map((item) => item.entry.id)).toEqual(["profile-old"]);
+    expect(truth.review.map((item) => item.entry.id)).toEqual(["profile-correction"]);
+  });
+
+  it("uses the latest correction as the winner for a repeatedly corrected claim", () => {
+    const olderCorrection = {
+      ...scan.entries[1],
+      id: "profile-correction-older",
+      title: "Older profile correction",
+      change: {
+        ...scan.entries[1].change!,
+        id: "change-profile-older",
+        createdAt: "2026-07-16T00:00:00.000Z",
+      },
+    };
+    const newerCorrection = {
+      ...scan.entries[1],
+      id: "profile-correction-newer",
+      title: "Newer profile correction",
+      change: {
+        ...scan.entries[1].change!,
+        id: "change-profile-newer",
+        createdAt: "2026-07-18T00:00:00.000Z",
+      },
+    };
+    const truth = resolveMemoryTruth({
+      ...scan,
+      entries: [scan.entries[0], newerCorrection, olderCorrection],
+      risks: [{
+        id: "risk-older-correction",
+        kind: "staleConflict",
+        title: "Superseded correction",
+        detail: "A newer correction targets the same claim.",
+        entryId: olderCorrection.id,
+      }],
+    });
+
+    expect(truth.current.map((item) => item.entry.id)).toEqual([newerCorrection.id]);
+    expect(truth.review.find((item) => item.entry.id === "profile-old")?.decision)
+      .toContain("Newer profile correction");
   });
 
   it("maps profile evidence ranges back to truth status", () => {

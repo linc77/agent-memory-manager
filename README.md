@@ -4,6 +4,12 @@
 
 Skills are discovered directly from native global and project directories. The app groups identical filesystem copies into logical capabilities and writes only a derived snapshot to `~/.agent-backplane/skill-inventory.json`.
 
+## Memory control
+
+Agent Backplane reads Codex, Claude Code, and Hermes memory through native filesystem adapters. Its local catalog reuses unchanged documents, ranks memory search results, and derives profiles only from effective claims.
+
+Corrections are targeted changes rather than topic-wide overrides. Each change records the claims and evidence it replaces, is written back in the selected Agent's native memory location, and can be reverted without deleting history.
+
 ## Downloads
 
 Installers are published on [GitHub Releases](https://github.com/linc77/agent-backplane/releases/latest):

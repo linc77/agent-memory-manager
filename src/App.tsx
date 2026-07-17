@@ -12,6 +12,7 @@ import {
   cancelMemoryProfileGeneration,
   draftCorrection,
   draftCorrectionFromContent,
+  draftRevert,
   getCodexAudit,
   getMemoryProfileGeneration,
   isFixtureMode,
@@ -47,6 +48,7 @@ import type {
   CodexAuditTask,
   CorrectionDraft,
   MemoryEntry,
+  MemoryChangeTarget,
   MemoryProfileGenerationTask,
   MemoryProfileSection,
   SuggestedCorrection,
@@ -64,6 +66,25 @@ import "./App.css";
 
 interface AuditRequest {
   mode: CodexAuditMode;
+}
+
+function targetsForEvidence(
+  entries: MemoryEntry[],
+  evidence: Array<{ sourcePath: string; startLine: number; endLine: number }>,
+) {
+  const targets = new Map<string, MemoryChangeTarget>();
+  for (const item of evidence) {
+    for (const entry of entries) {
+      if (
+        entry.sourcePath === item.sourcePath &&
+        entry.startLine <= item.endLine &&
+        item.startLine <= entry.endLine
+      ) {
+        targets.set(entry.id, { entryId: entry.id, sourcePath: entry.sourcePath });
+      }
+    }
+  }
+  return [...targets.values()];
 }
 
 function App() {
@@ -134,6 +155,7 @@ function App() {
   );
 
   const truth = useMemo(() => resolveMemoryTruth(scan), [scan]);
+  const writable = selectedAgent === "codex" || Boolean(agentMemoryQuery.data?.writable);
 
   const selectedSource = useMemo(
     () =>
@@ -155,56 +177,71 @@ function App() {
 
   const draftMutation = useMutation({
     mutationFn: (entry: MemoryEntry) =>
-      draftCorrection(null, "memory-correction", [
-        `Review and update memory from ${entry.sourcePath} lines ${entry.startLine}-${entry.endLine}: ${entry.summary}`,
-      ]),
-    onSuccess: (nextDraft) => {
-      if (selectedAgentRef.current === "codex") {
-        setDraft(nextDraft);
-      }
-    },
+      draftCorrection(
+        selectedAgentRef.current,
+        null,
+        "memory-correction",
+        [`Review and update memory from ${entry.sourcePath} lines ${entry.startLine}-${entry.endLine}: ${entry.summary}`],
+        [{ entryId: entry.id, sourcePath: entry.sourcePath }],
+      ),
+    onSuccess: setDraft,
   });
 
   const profileCorrectionMutation = useMutation({
     mutationFn: (section: MemoryProfileSection) =>
-      draftCorrection(null, `memory-profile-${section.id}`, [
-        `Review and update memory profile section "${section.title}": ${section.body}`,
-        ...section.evidence.map(
-          (evidence) =>
-            `Evidence ${evidence.sourcePath} lines ${evidence.startLine}-${evidence.endLine}: ${evidence.summary}`,
-        ),
-      ]),
-    onSuccess: (nextDraft) => {
-      if (selectedAgentRef.current === "codex") {
-        setDraft(nextDraft);
-      }
-    },
+      draftCorrection(
+        selectedAgentRef.current,
+        null,
+        `memory-profile-${section.id}`,
+        [
+          `Review and update memory profile section "${section.title}": ${section.body}`,
+          ...section.evidence.map(
+            (evidence) =>
+              `Evidence ${evidence.sourcePath} lines ${evidence.startLine}-${evidence.endLine}: ${evidence.summary}`,
+          ),
+        ],
+        targetsForEvidence(scan?.entries ?? [], section.evidence),
+      ),
+    onSuccess: setDraft,
   });
 
   const writeMutation = useMutation({
     mutationFn: (nextDraft: CorrectionDraft) => writeCorrection(null, nextDraft),
-    onSuccess: async (path) => {
-      await Promise.all([scanQuery.refetch(), profileQuery.refetch()]);
-      if (selectedAgentRef.current !== "codex") {
-        return;
+    onSuccess: async (result) => {
+      if (selectedAgentRef.current === "codex") {
+        await Promise.all([scanQuery.refetch(), profileQuery.refetch()]);
+      } else {
+        await agentMemoryQuery.refetch();
       }
       setDraft(null);
-      setLastWritePath(path);
+      setLastWritePath(result.path);
       setActiveTopic("effective");
       setSelectedEntryId(undefined);
       setQuery("");
       setProfileGenerationTask(null);
+      setAuditRun(null);
+      setAuditTask(null);
     },
   });
 
   const suggestedCorrectionMutation = useMutation({
     mutationFn: (correction: SuggestedCorrection) =>
-      draftCorrectionFromContent(null, correction.id, correction.content),
-    onSuccess: (nextDraft) => {
-      if (selectedAgentRef.current === "codex") {
-        setDraft(nextDraft);
-      }
+      draftCorrectionFromContent(
+        selectedAgentRef.current,
+        null,
+        correction.id,
+        correction.content,
+        targetsForEvidence(scan?.entries ?? [], correction.evidence),
+      ),
+    onSuccess: setDraft,
+  });
+
+  const revertMutation = useMutation({
+    mutationFn: (entry: MemoryEntry) => {
+      if (!entry.change) throw new Error("Selected memory is not a reversible change");
+      return draftRevert(selectedAgentRef.current, null, entry.change, entry.sourcePath);
     },
+    onSuccess: setDraft,
   });
 
   function applyAuditTask(task: CodexAuditTask) {
@@ -537,7 +574,7 @@ function App() {
           scan={scan}
           selectedEntryId={selectedEntryId}
           selectedAgent={selectedAgent}
-          writable={selectedAgent === "codex"}
+          writable={writable}
           uiText={uiText}
         />
       )}
@@ -551,11 +588,12 @@ function App() {
           <Inspector
             entry={selectedEntry}
             onDraftCorrection={(entry) => draftMutation.mutate(entry)}
+            onDraftRevert={(entry) => revertMutation.mutate(entry)}
             risk={selectedRisk}
             source={selectedSource}
             truthItem={selectedTruth}
             memoryRoot={scan?.root}
-            writable={selectedAgent === "codex"}
+            writable={writable}
             uiText={uiText}
           />
         </>
@@ -572,20 +610,20 @@ function App() {
       {selectedAgent === "codex" && isAuditRunning && (
         <div className="status-toast">{uiText.board.running}</div>
       )}
-      {selectedAgent === "codex" && lastWritePath && (
+      {lastWritePath && (
         <div className="status-toast">{uiText.app.correctionWritten(lastWritePath)}</div>
       )}
       {memoryError && <div className="status-toast error">{String(memoryError)}</div>}
       {selectedAgent === "codex" && profileGenerationError && (
         <div className="status-toast error">{String(profileGenerationError)}</div>
       )}
-      {selectedAgent === "codex" && draftMutation.error && (
+      {draftMutation.error && (
         <div className="status-toast error">{String(draftMutation.error)}</div>
       )}
-      {selectedAgent === "codex" && profileCorrectionMutation.error && (
+      {profileCorrectionMutation.error && (
         <div className="status-toast error">{String(profileCorrectionMutation.error)}</div>
       )}
-      {selectedAgent === "codex" && writeMutation.error && (
+      {writeMutation.error && (
         <div className="status-toast error">{String(writeMutation.error)}</div>
       )}
       {selectedAgent === "codex" && auditError && (
@@ -594,11 +632,14 @@ function App() {
       {openSourceMutation.error && (
         <div className="status-toast error">{String(openSourceMutation.error)}</div>
       )}
+      {revertMutation.error && (
+        <div className="status-toast error">{String(revertMutation.error)}</div>
+      )}
       {selectedAgent === "codex" && suggestedCorrectionMutation.error && (
         <div className="status-toast error">{String(suggestedCorrectionMutation.error)}</div>
       )}
 
-      {selectedAgent === "codex" && draft && (
+      {draft && (
         <CorrectionDialog
           draft={draft}
           isWriting={writeMutation.isPending}

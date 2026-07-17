@@ -63,9 +63,11 @@ describe("fixture API mode", () => {
   it("serves audit and correction commands without calling Electron IPC", async () => {
     const audit = await runCodexAudit("/tmp/demo-memory", "full");
     const draft = await draftCorrectionFromContent(
+      "codex",
       "/tmp/demo-memory",
       "Clarify Stack",
       "- The current stack is Python/Rust.",
+      [{ entryId: "profile", sourcePath: "MEMORY.md" }],
     );
     const written = await writeCorrection("/tmp/demo-memory", draft);
     await openSourceFile("/tmp/demo-memory/MEMORY.md");
@@ -74,7 +76,7 @@ describe("fixture API mode", () => {
     expect(audit.report.metadata.memoryRoot).toBe("/tmp/demo-memory");
     expect(draft.slug).toBe("clarify-stack");
     expect(draft.content).toContain("Memory update request:");
-    expect(written).toBe(draft.targetPath);
+    expect(written.path).toBe(draft.targetPath);
     expect(invokeMock).not.toHaveBeenCalled();
     expect(revealItemInDirMock).not.toHaveBeenCalled();
   });
@@ -118,7 +120,7 @@ describe("fixture API mode", () => {
     const codexMcp = await loadMcpInventory("codex");
     const claudeMcp = await loadMcpInventory("claudeCode");
 
-    expect(claudeMemory.writable).toBe(false);
+    expect(claudeMemory.writable).toBe(true);
     expect(claudeMemory.profile.sections[0].body).toContain("Claude Code");
     expect(claudeMemory.profile.sections[0].body).not.toContain("Hermes");
     expect(hermesMemory.profile.sections[0].body).toContain("Hermes");

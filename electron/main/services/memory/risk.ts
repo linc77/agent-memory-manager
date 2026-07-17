@@ -1,34 +1,63 @@
 import type { MemoryEntry, RiskFlag } from "../../../../src/lib/types";
 
 export function detectRisks(entries: MemoryEntry[]) {
-  const text = entries.map((entry) => `${entry.title} ${entry.summary}`).join("\n").toLowerCase();
   const risks: RiskFlag[] = [];
-  if (text.includes("java") && text.includes("spring boot") && text.includes("python/rust")) {
-    const entry = entries.find((candidate) => {
-      const value = `${candidate.title} ${candidate.summary}`.toLowerCase();
-      return value.includes("java") || value.includes("spring boot");
-    });
-    if (entry) {
+  const entryIds = new Set(entries.map((entry) => entry.id));
+  const changes = entries.filter((entry) => entry.change);
+  const changeIds = new Set(changes.map((entry) => entry.change!.id));
+  const revertedChangeIds = new Set(
+    changes
+      .filter((entry) => entry.change!.operation === "revert")
+      .map((entry) => entry.change!.revertsChangeId)
+      .filter((id): id is string => Boolean(id)),
+  );
+
+  for (const entry of changes) {
+    const change = entry.change!;
+    if (change.operation === "replace") {
+      const missingTargets = change.targetEntryIds.filter((id) => !entryIds.has(id));
+      if (missingTargets.length) {
+        risks.push({
+          id: `missing-target:${change.id}`,
+          kind: "staleConflict",
+          title: "Correction target is unavailable",
+          detail: `This change targets ${missingTargets.length} memory claim(s) that no longer exist.`,
+          entryId: entry.id,
+        });
+      }
+    }
+    if (change.operation === "revert" && change.revertsChangeId && !changeIds.has(change.revertsChangeId)) {
       risks.push({
-        id: "profile-stack-conflict",
+        id: `missing-revert:${change.id}`,
         kind: "staleConflict",
-        title: "Profile stack conflict",
-        detail: "Old Java/Spring Boot profile conflicts with newer Python/Rust override.",
+        title: "Reverted change is unavailable",
+        detail: "This revert references a memory change that no longer exists.",
         entryId: entry.id,
       });
     }
   }
-  if (text.includes("dilidili") && text.includes("no longer an active project")) {
-    const entry = entries.find((candidate) =>
-      `${candidate.title} ${candidate.summary}`.toLowerCase().includes("dilidili"),
-    );
-    if (entry) {
+
+  const replacementsByTarget = new Map<string, MemoryEntry[]>();
+  for (const entry of changes) {
+    const change = entry.change!;
+    if (change.operation !== "replace" || revertedChangeIds.has(change.id)) continue;
+    for (const targetId of change.targetEntryIds) {
+      const replacements = replacementsByTarget.get(targetId) ?? [];
+      replacements.push(entry);
+      replacementsByTarget.set(targetId, replacements);
+    }
+  }
+  for (const [targetId, replacements] of replacementsByTarget) {
+    if (replacements.length < 2) continue;
+    const sorted = [...replacements].sort((left, right) =>
+      left.change!.createdAt.localeCompare(right.change!.createdAt));
+    for (const covered of sorted.slice(0, -1)) {
       risks.push({
-        id: "dilidili-active-project-conflict",
+        id: `covered-change:${targetId}:${covered.change!.id}`,
         kind: "coveredByOverride",
-        title: "Project activity override",
-        detail: "`dilidili` appears in older project memory but is covered by a newer inactive-project override.",
-        entryId: entry.id,
+        title: "Correction covered by a newer change",
+        detail: "A newer targeted correction now owns this memory claim.",
+        entryId: covered.id,
       });
     }
   }

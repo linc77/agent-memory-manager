@@ -1,4 +1,4 @@
-import { ExternalLink, FileText, PencilLine } from "lucide-react";
+import { ExternalLink, FileText, PencilLine, RotateCcw } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getSourceExcerpt, openSourceFile } from "../lib/api";
 import type { UiText } from "../lib/i18n";
@@ -14,6 +14,7 @@ export function Inspector({
   uiText,
   writable,
   onDraftCorrection,
+  onDraftRevert,
 }: {
   entry?: MemoryEntry;
   source?: MemorySource;
@@ -23,6 +24,7 @@ export function Inspector({
   uiText: UiText;
   writable: boolean;
   onDraftCorrection: (entry: MemoryEntry) => void;
+  onDraftRevert: (entry: MemoryEntry) => void;
 }) {
   const excerptQuery = useQuery({
     enabled: Boolean(entry && source && memoryRoot),
@@ -110,6 +112,12 @@ export function Inspector({
           <button className="primary-button" onClick={() => onDraftCorrection(entry)} type="button">
             <PencilLine size={16} />
             {uiText.inspector.draftCorrection}
+          </button>
+        )}
+        {writable && entry.change?.operation === "replace" && truthItem?.status === "current" && (
+          <button className="secondary-button" onClick={() => onDraftRevert(entry)} type="button">
+            <RotateCcw size={16} />
+            {uiText.inspector.revertChange}
           </button>
         )}
         <button

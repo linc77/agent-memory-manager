@@ -202,7 +202,8 @@ describe("App browser fixture mode", () => {
 
     expect(await findByRole("heading", { name: "Claude Code 目前这样理解你" })).toBeInTheDocument();
     expect(await findByText("Claude Code fixture memory is isolated from Codex.")).toBeInTheDocument();
-    expect(queryByRole("button", { name: "这不对" })).not.toBeInTheDocument();
+    expect(queryByRole("button", { name: "这不对" })).toBeInTheDocument();
+    expect(queryByRole("button", { name: "重新生成" })).not.toBeInTheDocument();
     expect(queryByRole("button", { name: "检查" })).not.toBeInTheDocument();
     expect(ensureLocalStorage().getItem("agent-backplane.selected-agent")).toBe(
       "claudeCode",

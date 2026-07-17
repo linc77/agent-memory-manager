@@ -1,5 +1,5 @@
 import type { MemoryEntry, MemoryTopic } from "../../../../src/lib/types";
-import { textLines } from "../shared";
+import { sha256, textLines } from "../shared";
 
 export function parseEntries(relativePath: string, text: string) {
   const entries: MemoryEntry[] = [];
@@ -58,8 +58,9 @@ function flushEntry(
     return;
   }
   const topic = inferTopic(relativePath, title, body);
+  const change = parseChangeMetadata(body);
   output.push({
-    id: `${relativePath}:${startLine}-${endLine}`,
+    id: `${relativePath}:${sha256(`${title}\n${body}`).slice(0, 16)}`,
     topic,
     relatedTopics: topic === "overrides" ? inferContentTopics(title, body) : [],
     title,
@@ -68,7 +69,35 @@ function flushEntry(
     sourcePath: relativePath,
     startLine,
     endLine,
+    ...(change ? { change } : {}),
   });
+}
+
+function parseChangeMetadata(body: string) {
+  const match = body.match(/<!--\s*agent-backplane-change\s+({[^\n]*})\s*-->/);
+  if (!match) return undefined;
+  try {
+    const value = JSON.parse(match[1]) as Record<string, unknown>;
+    if (
+      typeof value.id !== "string" ||
+      !["replace", "append", "revert"].includes(String(value.operation)) ||
+      !Array.isArray(value.targetEntryIds) ||
+      !value.targetEntryIds.every((item) => typeof item === "string") ||
+      !(value.revertsChangeId === null || typeof value.revertsChangeId === "string") ||
+      typeof value.createdAt !== "string"
+    ) {
+      return undefined;
+    }
+    return {
+      id: value.id,
+      operation: value.operation as "replace" | "append" | "revert",
+      targetEntryIds: value.targetEntryIds as string[],
+      revertsChangeId: value.revertsChangeId as string | null,
+      createdAt: value.createdAt,
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 function selectSummaryLine(body: string) {
@@ -125,6 +154,8 @@ function isUsableSummaryLine(line: string) {
     line &&
       !line.startsWith("#") &&
       line.toLowerCase() !== "memory update request:" &&
+      line !== "§" &&
+      !line.startsWith("<!-- agent-backplane-change") &&
       !isRegistryMetadataLine(line),
   );
 }

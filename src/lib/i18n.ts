@@ -222,6 +222,7 @@ export interface UiText {
     reviewReason: string;
     staleCandidates: string;
     draftCorrection: string;
+    revertChange: string;
     openSource: string;
   };
   dialog: {
@@ -573,6 +574,7 @@ const zhCN: UiText = {
     reviewReason: "复核原因",
     staleCandidates: "被覆盖的旧记忆",
     draftCorrection: "起草修正",
+    revertChange: "撤销这条修正",
     openSource: "打开来源",
   },
   dialog: {
@@ -907,6 +909,7 @@ const enUS: UiText = {
     reviewReason: "Review Reason",
     staleCandidates: "Displaced Stale Memories",
     draftCorrection: "Draft correction",
+    revertChange: "Revert this change",
     openSource: "Open source",
   },
   dialog: {

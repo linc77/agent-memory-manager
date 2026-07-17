@@ -26,20 +26,44 @@ export const sourceExcerptSchema = z.object({
   startLine: z.number().int().positive(),
   endLine: z.number().int().positive(),
 }).strict().refine((value) => value.endLine >= value.startLine, "endLine must not precede startLine");
+export const memoryChangeMetadataSchema = z.object({
+  id: z.string().min(1).max(256),
+  operation: z.enum(["replace", "append", "revert"]),
+  targetEntryIds: z.array(z.string().min(1).max(4096)).max(256),
+  revertsChangeId: z.string().min(1).max(256).nullable(),
+  createdAt: z.string().min(1).max(64),
+}).strict();
+export const memoryChangeTargetSchema = z.object({
+  entryId: z.string().min(1).max(4096),
+  sourcePath: z.string().min(1).max(4096),
+}).strict();
 export const correctionDraftSchema = z.object({
+  agent: agentSchema,
   slug: z.string(),
   content: z.string(),
   targetPath: z.string(),
+  targetSourcePaths: z.array(z.string().min(1).max(4096)).max(256),
+  change: memoryChangeMetadataSchema,
 }).strict();
 export const draftCorrectionSchema = z.object({
+  agent: agentSchema,
   rootOverride: z.string().nullable(),
   slug: z.string(),
   bulletLines: z.array(z.string()),
+  targets: z.array(memoryChangeTargetSchema).max(256),
 }).strict();
 export const draftCorrectionFromContentSchema = z.object({
+  agent: agentSchema,
   rootOverride: z.string().nullable(),
   slug: z.string(),
   content: z.string(),
+  targets: z.array(memoryChangeTargetSchema).max(256),
+}).strict();
+export const draftRevertSchema = z.object({
+  agent: agentSchema,
+  rootOverride: z.string().nullable(),
+  change: memoryChangeMetadataSchema,
+  sourcePath: z.string().min(1).max(4096),
 }).strict();
 export const writeCorrectionSchema = z.object({
   rootOverride: z.string().nullable(),

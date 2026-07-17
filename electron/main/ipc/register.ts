@@ -8,6 +8,7 @@ import {
   auditInputSchema,
   draftCorrectionFromContentSchema,
   draftCorrectionSchema,
+  draftRevertSchema,
   profileIdInputSchema,
   revealSourceSchema,
   rootOverrideSchema,
@@ -23,14 +24,14 @@ import { createAppUpdaterService, type AppUpdaterService } from "../services/app
 import { cancelCodexAudit, getCodexAudit, runCodexAudit, startCodexAudit } from "../services/audit";
 import { ElectronSecretStore } from "../services/electronSecretStore";
 import { loadAgentMemorySnapshot, loadMemoryProfile, scanMemories } from "../services/memory";
-import { draftCorrection, draftCorrectionFromContent, getSourceExcerpt, writeCorrection } from "../services/memory/correction";
+import { draftCorrection, draftCorrectionFromContent, draftRevert, getSourceExcerpt, writeCorrection } from "../services/memory/correction";
 import {
   cancelProfileGeneration,
   generateMemoryProfile,
   getProfileGeneration,
   startProfileGeneration,
 } from "../services/memory/generation";
-import { resolveMemoryRoot } from "../services/memory/paths";
+import { resolveAgentMemoryRoot, resolveMemoryRoot } from "../services/memory/paths";
 import { loadMcpInventory } from "../services/mcp";
 import { loadSkillInventory, saveSkillManifest } from "../services/skills";
 import { loadSkillUsage } from "../services/skillUsage";
@@ -122,11 +123,13 @@ export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: s
   handle(channels.getSourceExcerpt, sourceExcerptSchema, window, developmentOrigin, (input) =>
     getSourceExcerpt(resolveMemoryRoot(input.rootOverride), input.path, input.startLine, input.endLine));
   handle(channels.draftCorrection, draftCorrectionSchema, window, developmentOrigin, (input) =>
-    draftCorrection(resolveMemoryRoot(input.rootOverride), input.slug, input.bulletLines));
+    draftCorrection(input.agent, resolveAgentMemoryRoot(input.agent, input.rootOverride), input.slug, input.bulletLines, input.targets));
   handle(channels.draftCorrectionFromContent, draftCorrectionFromContentSchema, window, developmentOrigin, (input) =>
-    draftCorrectionFromContent(resolveMemoryRoot(input.rootOverride), input.slug, input.content));
+    draftCorrectionFromContent(input.agent, resolveAgentMemoryRoot(input.agent, input.rootOverride), input.slug, input.content, input.targets));
+  handle(channels.draftRevert, draftRevertSchema, window, developmentOrigin, (input) =>
+    draftRevert(input.agent, resolveAgentMemoryRoot(input.agent, input.rootOverride), input.change, input.sourcePath));
   handle(channels.writeCorrection, writeCorrectionSchema, window, developmentOrigin, (input) =>
-    writeCorrection(resolveMemoryRoot(input.rootOverride), input.draft));
+    writeCorrection(resolveAgentMemoryRoot(input.draft.agent, input.rootOverride), input.draft));
   handle(channels.startCodexAudit, auditInputSchema, window, developmentOrigin, ({ rootOverride, mode }) =>
     startCodexAudit(rootOverride, mode));
   ipcMain.handle(channels.getCodexAudit, (event) => {

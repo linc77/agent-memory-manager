@@ -7,6 +7,8 @@ import type {
   CodexAuditRun,
   CodexAuditTask,
   CorrectionDraft,
+  MemoryChangeMetadata,
+  MemoryChangeTarget,
   MemoryProfile,
   MemoryProfileGenerationTask,
   McpInventory,
@@ -115,39 +117,62 @@ export function getSourceExcerpt(
 }
 
 export function draftCorrection(
+  agent: AgentKind,
   rootOverride: string | null,
   slug: string,
   bulletLines: string[],
+  targets: MemoryChangeTarget[],
 ) {
   if (isFixtureMode()) {
     const content = `Memory update request:\n\n${bulletLines
       .filter((line) => line.trim())
       .map((line) => `- ${line.trim()}`)
       .join("\n")}\n`;
-    return Promise.resolve(buildFixtureDraft(rootOverride, slug, content));
+    return Promise.resolve(buildFixtureDraft(agent, rootOverride, slug, content, targets));
   }
 
-  return desktopApi().memory.draftCorrection(rootOverride, slug, bulletLines);
+  return desktopApi().memory.draftCorrection(agent, rootOverride, slug, bulletLines, targets);
 }
 
 export function draftCorrectionFromContent(
+  agent: AgentKind,
   rootOverride: string | null,
   slug: string,
   content: string,
+  targets: MemoryChangeTarget[],
 ) {
   if (isFixtureMode()) {
     const normalized = content.trim().toLowerCase().startsWith("memory update request:")
       ? `${content.trim()}\n`
       : `Memory update request:\n\n${content.trim()}\n`;
-    return Promise.resolve(buildFixtureDraft(rootOverride, slug, normalized));
+    return Promise.resolve(buildFixtureDraft(agent, rootOverride, slug, normalized, targets));
   }
 
-  return desktopApi().memory.draftCorrectionFromContent(rootOverride, slug, content);
+  return desktopApi().memory.draftCorrectionFromContent(agent, rootOverride, slug, content, targets);
+}
+
+export function draftRevert(
+  agent: AgentKind,
+  rootOverride: string | null,
+  change: MemoryChangeMetadata,
+  sourcePath: string,
+) {
+  if (isFixtureMode()) {
+    return Promise.resolve(buildFixtureDraft(
+      agent,
+      rootOverride,
+      `revert-${change.id}`,
+      `Memory update request:\n\n- Revert memory change ${change.id}.\n`,
+      [{ entryId: change.id, sourcePath }],
+      { operation: "revert", revertsChangeId: change.id },
+    ));
+  }
+  return desktopApi().memory.draftRevert(agent, rootOverride, change, sourcePath);
 }
 
 export function writeCorrection(rootOverride: string | null, draft: CorrectionDraft) {
   if (isFixtureMode()) {
-    return Promise.resolve(draft.targetPath);
+    return Promise.resolve({ path: draft.targetPath, changeId: draft.change.id });
   }
 
   return desktopApi().memory.writeCorrection(rootOverride, draft);
@@ -427,13 +452,13 @@ function fixtureAgentMemorySnapshot(agent: AgentKind): AgentMemorySnapshot {
   };
   return {
     agent,
-    writable: false,
+    writable: true,
     scan,
     profile: {
       schemaVersion: "1",
       generatedAt: "2026-07-16T02:00:00Z",
       sourceHash: `fixture-${agent}-profile`,
-      generator: "deterministic-profile-v3",
+      generator: "deterministic-profile-v4",
       cachePath: `${root}/.backplane/profile.json`,
       sections: [
         {
@@ -462,9 +487,12 @@ function fixtureAgentMemorySnapshot(agent: AgentKind): AgentMemorySnapshot {
 }
 
 function buildFixtureDraft(
+  agent: AgentKind,
   rootOverride: string | null,
   slug: string,
   content: string,
+  targets: MemoryChangeTarget[],
+  override?: Pick<MemoryChangeMetadata, "operation" | "revertsChangeId">,
 ): CorrectionDraft {
   const safeSlug =
     slug
@@ -472,9 +500,18 @@ function buildFixtureDraft(
       .replace(/[^a-z0-9-]+/g, "-")
       .replace(/^-+|-+$/g, "") || "memory-update";
   return {
+    agent,
     slug: safeSlug,
     content,
     targetPath: `${fixtureRoot(rootOverride)}/extensions/ad_hoc/notes/demo-${safeSlug}.md`,
+    targetSourcePaths: [...new Set(targets.map((target) => target.sourcePath))],
+    change: {
+      id: `fixture-${safeSlug}`,
+      operation: override?.operation ?? "replace",
+      targetEntryIds: targets.map((target) => target.entryId),
+      revertsChangeId: override?.revertsChangeId ?? null,
+      createdAt: "2026-07-17T00:00:00.000Z",
+    },
   };
 }
 

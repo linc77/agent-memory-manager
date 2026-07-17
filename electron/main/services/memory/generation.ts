@@ -8,6 +8,7 @@ import { runCodexExec } from "../codex";
 import { isoNow } from "../shared";
 import { resolveMemoryRoot } from "./paths";
 import { buildMemoryProfileWithoutCache } from "./profile";
+import { currentMemoryEntries } from "./profile";
 import { scanMemories } from "./index";
 
 function schemaPath() {
@@ -26,13 +27,13 @@ function normalizeProfile(profile: MemoryProfile, base: MemoryProfile): MemoryPr
     schemaVersion: "1",
     generatedAt: isoNow(),
     sourceHash: base.sourceHash,
-    generator: "codex-profile-v1",
+    generator: "codex-profile-v2",
     cachePath: base.cachePath,
     metadata: base.metadata,
   };
 }
 
-function validateProfile(profile: MemoryProfile, sourcePaths: Set<string>) {
+function validateProfile(profile: MemoryProfile, sourceLines: Map<string, number>) {
   if (!Array.isArray(profile.sections) || profile.sections.length > 8) {
     throw new Error("codex exec returned an invalid memory profile");
   }
@@ -41,7 +42,8 @@ function validateProfile(profile: MemoryProfile, sourcePaths: Set<string>) {
       throw new Error("codex exec returned an incomplete memory profile section");
     }
     for (const evidence of section.evidence) {
-      if (!sourcePaths.has(evidence.sourcePath) || evidence.startLine < 1 || evidence.endLine < evidence.startLine) {
+      const lines = sourceLines.get(evidence.sourcePath);
+      if (!lines || evidence.startLine < 1 || evidence.endLine < evidence.startLine || evidence.endLine > lines) {
         throw new Error("codex exec returned invalid memory profile evidence");
       }
     }
@@ -52,13 +54,14 @@ export async function generateMemoryProfile(rootOverride?: string | null, signal
   const root = resolveMemoryRoot(rootOverride);
   const scan = await scanMemories(root);
   const base = buildMemoryProfileWithoutCache(root, scan.sources, scan.entries, scan.risks);
+  const current = currentMemoryEntries(scan.sources, scan.entries, scan.risks);
   const bundle = {
     schemaVersion: "1",
     memoryRoot: root,
     generatedAt: isoNow(),
     sourceHash: base.sourceHash,
     risks: scan.risks,
-    entries: scan.entries.map((entry) => ({ ...entry, searchText: [...entry.searchText].slice(0, 12_000).join("") })),
+    entries: current.map((entry) => ({ ...entry, searchText: [...entry.searchText].slice(0, 12_000).join("") })),
   };
   try {
     const output = await runCodexExec({
@@ -69,13 +72,13 @@ export async function generateMemoryProfile(rootOverride?: string | null, signal
       prompt: "Analyze this Agent Backplane bundle from stdin and return only the Memory Profile JSON. Write natural Chinese, discover durable themes from evidence, use specific observation titles, and never invent evidence paths or line ranges.",
     });
     const profile = normalizeProfile(JSON.parse(output) as MemoryProfile, base);
-    validateProfile(profile, new Set(scan.sources.map((source) => source.relativePath)));
+    validateProfile(profile, new Map(scan.sources.map((source) => [source.relativePath, source.lines])));
     await mkdir(dirname(profile.cachePath), { recursive: true });
     await writeFile(profile.cachePath, `${JSON.stringify(profile, null, 2)}\n`, { mode: 0o600 });
     return profile;
   } catch (error) {
     if (signal?.aborted || (error instanceof Error && error.message.includes("cancelled"))) throw error;
-    const fallback = { ...base, generator: "deterministic-profile-v3-fallback" };
+    const fallback = { ...base, generator: "deterministic-profile-v4-fallback" };
     await mkdir(dirname(fallback.cachePath), { recursive: true });
     await writeFile(fallback.cachePath, `${JSON.stringify(fallback, null, 2)}\n`, { mode: 0o600 });
     return fallback;

@@ -12,6 +12,11 @@ export function resolveMemoryRoot(rootOverride?: string | null) {
   return value ? resolveHomePath(value) : defaultMemoryRoot();
 }
 
+export function resolveAgentMemoryRoot(agent: AgentKind, rootOverride?: string | null) {
+  const value = rootOverride?.trim();
+  return value ? resolveHomePath(value) : defaultAgentMemoryRoot(agent);
+}
+
 export function defaultAgentMemoryRoot(agent: AgentKind) {
   switch (agent) {
     case "codex":

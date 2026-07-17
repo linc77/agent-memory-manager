@@ -62,18 +62,21 @@ export function resolveMemoryTruth(scan?: ScanResult): MemoryTruthModel {
   const entries = scan?.entries ?? [];
   const riskByEntryId = new Map((scan?.risks ?? []).map((risk) => [risk.entryId, risk]));
   const durableEntries = entries.filter((entry) => isDurableCurrentCandidate(entry, sources));
-  const correctionEntries = durableEntries.filter((entry) => hasCorrectionAuthority(entry, sources));
+  const revertedChangeIds = new Set(
+    durableEntries
+      .filter((entry) => entry.change?.operation === "revert")
+      .map((entry) => entry.change?.revertsChangeId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const correctionEntries = durableEntries
+    .filter((entry) => hasCorrectionAuthority(entry, sources) && !revertedChangeIds.has(entry.change!.id))
+    .sort((left, right) => left.change!.createdAt.localeCompare(right.change!.createdAt));
   const staleByEntryId = new Map<string, MemoryEntry>();
   const staleForCorrection = new Map<string, MemoryEntry[]>();
 
   for (const correction of correctionEntries) {
-    const correctionTopic = truthTopic(correction);
-    const candidates = durableEntries.filter(
-      (entry) =>
-        entry.id !== correction.id &&
-        truthTopic(entry) === correctionTopic &&
-        sourceRank(entry, sources) > sourceRank(correction, sources),
-    );
+    const targetIds = new Set(correction.change?.targetEntryIds ?? []);
+    const candidates = durableEntries.filter((entry) => targetIds.has(entry.id));
 
     if (candidates.length) {
       staleForCorrection.set(correction.id, sortEntries(candidates, sources));
@@ -84,7 +87,11 @@ export function resolveMemoryTruth(scan?: ScanResult): MemoryTruthModel {
   }
 
   const current = sortEntries(durableEntries, sources)
-    .filter((entry) => !staleByEntryId.has(entry.id) && !riskByEntryId.has(entry.id))
+    .filter((entry) =>
+      entry.change?.operation !== "revert" &&
+      !revertedChangeIds.has(entry.change?.id ?? "") &&
+      !staleByEntryId.has(entry.id) &&
+      !riskByEntryId.has(entry.id))
     .map((entry) =>
       buildTruthItem({
         entry,
@@ -96,6 +103,16 @@ export function resolveMemoryTruth(scan?: ScanResult): MemoryTruthModel {
     );
 
   const review = [
+    ...sortEntries(durableEntries, sources)
+      .filter((entry) => entry.change?.operation === "replace" && revertedChangeIds.has(entry.change.id))
+      .map((entry) => buildTruthItem({
+        entry,
+        sources,
+        status: "stale",
+        decision: "This memory change was reverted.",
+        reviewReason: "The targeted claim was restored by a later revert.",
+        staleCandidates: [],
+      })),
     ...sortEntries(durableEntries, sources)
       .filter((entry) => staleByEntryId.has(entry.id))
       .map((entry) => {
@@ -188,15 +205,11 @@ function isUncertainEntry(entry: MemoryEntry, sources: MemorySource[]) {
 }
 
 function hasCorrectionAuthority(entry: MemoryEntry, sources: MemorySource[]) {
-  return entry.topic === "overrides" || sourceForEntry(sources, entry)?.kind === "adHocNote";
-}
-
-function truthTopic(entry: MemoryEntry) {
-  if (entry.topic === "overrides") {
-    return entry.relatedTopics.find((topic) => currentTopics.has(topic)) ?? entry.topic;
-  }
-
-  return entry.topic;
+  return (
+    (entry.topic === "overrides" || sourceForEntry(sources, entry)?.kind === "adHocNote") &&
+    entry.change?.operation === "replace" &&
+    entry.change.targetEntryIds.length > 0
+  );
 }
 
 function sourceRank(entry: MemoryEntry, sources: MemorySource[]) {

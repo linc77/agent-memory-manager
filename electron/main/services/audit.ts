@@ -14,6 +14,7 @@ import { runCodexExec } from "./codex";
 import { scanMemories } from "./memory";
 import { resolveMemoryRoot } from "./memory/paths";
 import { atomicWrite, isoNow } from "./shared";
+import { resolveMemoryTruth } from "../../../src/lib/memoryTruth";
 
 function reportSchemaPath() {
   const candidates = [
@@ -65,6 +66,7 @@ export async function runCodexAudit(
 ): Promise<CodexAuditRun> {
   const root = resolveMemoryRoot(rootOverride);
   const scan = await scanMemories(root);
+  const truth = resolveMemoryTruth(scan);
   const curated = mode === "curated";
   const prompt = curated
     ? "Analyze this Agent Backplane curated memory bundle from stdin. Return only the required current-memory report. Set mode exactly to curated, metadata.memoryRoot exactly to the bundle memoryRoot, and use only supplied evidence references."
@@ -74,16 +76,24 @@ export async function runCodexAudit(
     schemaPath: reportSchemaPath(),
     signal,
     prompt,
-    stdin: curated ? JSON.stringify({
+    stdin: JSON.stringify({
       schemaVersion: "1",
       memoryRoot: root,
       generatedAt: isoNow(),
+      effectiveTruth: {
+        currentEntryIds: truth.current.map((item) => item.entry.id),
+        review: truth.review.map((item) => ({
+          entryId: item.entry.id,
+          status: item.status,
+          decision: item.decision,
+        })),
+      },
       entries: scan.entries.map((entry) => ({
         ...entry,
         boundedText: [...entry.searchText].slice(0, 12_000).join(""),
         searchText: undefined,
       })),
-    }) : undefined,
+    }),
   });
   const report = JSON.parse(output) as CodexAuditReport;
   validateReport(report, mode, root, scan.sources);

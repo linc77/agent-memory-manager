@@ -10,6 +10,9 @@ import type {
   McpInventory,
   MemoryProfile,
   MemoryProfileGenerationTask,
+  MemoryChangeMetadata,
+  MemoryChangeTarget,
+  MemoryChangeWriteResult,
   SaveAgentProfileInput,
   SaveSkillManifestInput,
   ScanResult,
@@ -41,16 +44,26 @@ export interface BackplaneDesktopApi {
       endLine: number,
     ): Promise<string>;
     draftCorrection(
+      agent: AgentKind,
       rootOverride: string | null,
       slug: string,
       bulletLines: string[],
+      targets: MemoryChangeTarget[],
     ): Promise<CorrectionDraft>;
     draftCorrectionFromContent(
+      agent: AgentKind,
       rootOverride: string | null,
       slug: string,
       content: string,
+      targets: MemoryChangeTarget[],
     ): Promise<CorrectionDraft>;
-    writeCorrection(rootOverride: string | null, draft: CorrectionDraft): Promise<string>;
+    draftRevert(
+      agent: AgentKind,
+      rootOverride: string | null,
+      change: MemoryChangeMetadata,
+      sourcePath: string,
+    ): Promise<CorrectionDraft>;
+    writeCorrection(rootOverride: string | null, draft: CorrectionDraft): Promise<MemoryChangeWriteResult>;
   };
   audit: {
     start(rootOverride: string | null, mode: CodexAuditMode): Promise<CodexAuditTask>;

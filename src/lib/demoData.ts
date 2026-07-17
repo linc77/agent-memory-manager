@@ -67,6 +67,13 @@ export const demoScanResult: ScanResult = {
       sourcePath: "extensions/ad_hoc/notes/profile.md",
       startLine: 1,
       endLine: 4,
+      change: {
+        id: "demo-profile-change",
+        operation: "replace",
+        targetEntryIds: ["demo-profile"],
+        revertsChangeId: null,
+        createdAt: "2026-07-17T00:00:00.000Z",
+      },
     },
   ],
   risks: [

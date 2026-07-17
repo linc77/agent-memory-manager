@@ -11,9 +11,9 @@ const cachePath =
   explicitPath ?? path.join(os.homedir(), ".codex/memories/.backplane/profile.json");
 
 const allowedGenerators = new Set([
-  "codex-profile-v1",
-  "deterministic-profile-v3",
-  "deterministic-profile-v3-fallback",
+  "codex-profile-v2",
+  "deterministic-profile-v4",
+  "deterministic-profile-v4-fallback",
 ]);
 
 const templateIds = new Set([
@@ -107,6 +107,8 @@ check(profile.sections?.length > 0, "sections must not be empty for a profile ca
 check(profile.sections?.length <= 8, "sections must not exceed 8 items");
 check(profile.metadata && typeof profile.metadata === "object", "metadata is required");
 
+const requiresChineseSynthesis = profile.generator === "codex-profile-v2";
+
 const memoryRoot = profile.metadata?.memoryRoot;
 check(typeof memoryRoot === "string" && memoryRoot.length > 0, "metadata.memoryRoot is required");
 if (typeof memoryRoot === "string" && memoryRoot.length > 0) {
@@ -133,12 +135,16 @@ for (const [index, section] of (profile.sections ?? []).entries()) {
   check(!titles.has(section.title), `${prefix}.title is duplicated: ${section.title}`);
   titles.add(section.title);
   check(!templateTitles.has(section.title), `${prefix}.title uses a template bucket: ${section.title}`);
-  check(typeof section.title === "string" && hasCjk(section.title), `${prefix}.title should include Chinese synthesis`);
-  check(typeof section.title === "string" && !hasForbiddenText(section.title), `${prefix}.title contains machine text`);
+  if (requiresChineseSynthesis) {
+    check(typeof section.title === "string" && hasCjk(section.title), `${prefix}.title should include Chinese synthesis`);
+    check(typeof section.title === "string" && !hasForbiddenText(section.title), `${prefix}.title contains machine text`);
+  }
 
   check(typeof section.body === "string" && section.body.trim().length >= 20, `${prefix}.body is too short`);
-  check(typeof section.body === "string" && hasCjk(section.body), `${prefix}.body should include Chinese synthesis`);
-  check(typeof section.body === "string" && !hasForbiddenText(section.body), `${prefix}.body contains machine text`);
+  if (requiresChineseSynthesis) {
+    check(typeof section.body === "string" && hasCjk(section.body), `${prefix}.body should include Chinese synthesis`);
+    check(typeof section.body === "string" && !hasForbiddenText(section.body), `${prefix}.body contains machine text`);
+  }
 
   check(confidenceValues.has(section.confidence), `${prefix}.confidence is invalid`);
   check(stabilityValues.has(section.stability), `${prefix}.stability is invalid`);
@@ -157,8 +163,10 @@ for (const [index, section] of (profile.sections ?? []).entries()) {
     check(Number.isInteger(evidence.startLine) && evidence.startLine >= 1, `${evidencePrefix}.startLine is invalid`);
     check(Number.isInteger(evidence.endLine) && evidence.endLine >= evidence.startLine, `${evidencePrefix}.endLine is invalid`);
     check(typeof evidence.summary === "string" && evidence.summary.trim().length > 0, `${evidencePrefix}.summary is required`);
-    check(typeof evidence.summary === "string" && hasCjk(evidence.summary), `${evidencePrefix}.summary should include Chinese synthesis`);
-    check(typeof evidence.summary === "string" && !hasForbiddenText(evidence.summary), `${evidencePrefix}.summary contains machine text`);
+    if (requiresChineseSynthesis) {
+      check(typeof evidence.summary === "string" && hasCjk(evidence.summary), `${evidencePrefix}.summary should include Chinese synthesis`);
+      check(typeof evidence.summary === "string" && !hasForbiddenText(evidence.summary), `${evidencePrefix}.summary contains machine text`);
+    }
 
     if (typeof memoryRoot === "string" && memoryRoot.length > 0 && typeof evidence.sourcePath === "string") {
       const sourcePath = path.join(memoryRoot, evidence.sourcePath);

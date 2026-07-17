@@ -10,10 +10,28 @@ import type {
   CodexAuditTask,
   MemoryProfile,
   ScanResult,
+  CorrectionDraft,
 } from "./lib/types";
 
 const invokeMock = vi.hoisted(() => vi.fn());
 const revealItemInDirMock = vi.hoisted(() => vi.fn());
+
+function correctionDraftFixture(slug: string, content: string, path?: string): CorrectionDraft {
+  return {
+    agent: "codex",
+    slug,
+    content,
+    targetPath: path ?? `/Users/qsh/.codex/memories/extensions/ad_hoc/notes/${slug}.md`,
+    targetSourcePaths: ["MEMORY.md"],
+    change: {
+      id: `change-${slug}`,
+      operation: "replace",
+      targetEntryIds: ["profile"],
+      revertsChangeId: null,
+      createdAt: "2026-07-17T00:00:00.000Z",
+    },
+  };
+}
 
 Object.defineProperty(window, "backplane", {
   configurable: true,
@@ -48,10 +66,12 @@ Object.defineProperty(window, "backplane", {
       loadAgentSnapshot: (agent: string) => invokeMock("load_agent_memory_snapshot", { agent }),
       getSourceExcerpt: (rootOverride: string | null, path: string, startLine: number, endLine: number) =>
         invokeMock("get_source_excerpt", { rootOverride, path, startLine, endLine }),
-      draftCorrection: (rootOverride: string | null, slug: string, bulletLines: string[]) =>
-        invokeMock("draft_correction", { rootOverride, slug, bulletLines }),
-      draftCorrectionFromContent: (rootOverride: string | null, slug: string, content: string) =>
-        invokeMock("draft_correction_from_content", { rootOverride, slug, content }),
+      draftCorrection: (agent: string, rootOverride: string | null, slug: string, bulletLines: string[], targets: unknown) =>
+        invokeMock("draft_correction", { agent, rootOverride, slug, bulletLines, targets }),
+      draftCorrectionFromContent: (agent: string, rootOverride: string | null, slug: string, content: string, targets: unknown) =>
+        invokeMock("draft_correction_from_content", { agent, rootOverride, slug, content, targets }),
+      draftRevert: (agent: string, rootOverride: string | null, change: unknown, sourcePath: string) =>
+        invokeMock("draft_revert", { agent, rootOverride, change, sourcePath }),
       writeCorrection: (rootOverride: string | null, draft: unknown) => invokeMock("write_correction", { rootOverride, draft }),
     },
     audit: {
@@ -156,6 +176,13 @@ const clarityScanResult: ScanResult = {
       sourcePath: "extensions/ad_hoc/notes/profile.md",
       startLine: 1,
       endLine: 3,
+      change: {
+        id: "change-profile",
+        operation: "replace",
+        targetEntryIds: ["profile"],
+        revertsChangeId: null,
+        createdAt: "2026-07-17T00:00:00.000Z",
+      },
     },
   ],
   risks: [],
@@ -757,12 +784,10 @@ describe("App memory clarity", () => {
         return Promise.resolve(clarityMemoryProfile);
       }
       if (command === "draft_correction") {
-        return Promise.resolve({
-          slug: "memory-profile-python-rust-current-stack",
-          content: "Memory update request:\n\n- Review profile overview.\n",
-          targetPath:
-            "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/memory-profile-python-rust-current-stack.md",
-        });
+        return Promise.resolve(correctionDraftFixture(
+          "memory-profile-python-rust-current-stack",
+          "Memory update request:\n\n- Review profile overview.\n",
+        ));
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
@@ -774,12 +799,17 @@ describe("App memory clarity", () => {
     expect(await findByText("修正笔记")).toBeInTheDocument();
     await waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith("draft_correction", {
+        agent: "codex",
         rootOverride: null,
         slug: "memory-profile-python-rust-current-stack",
         bulletLines: expect.arrayContaining([
           expect.stringContaining(
             'Review and update memory profile section "你明确把 Python/Rust 作为当前主栈"',
           ),
+        ]),
+        targets: expect.arrayContaining([
+          { entryId: "profile", sourcePath: "MEMORY.md" },
+          { entryId: "profile-correction", sourcePath: "extensions/ad_hoc/notes/profile.md" },
         ]),
       }),
     );
@@ -819,17 +849,16 @@ describe("App memory clarity", () => {
         return Promise.resolve(profileCalls === 1 ? clarityMemoryProfile : correctedProfile);
       }
       if (command === "draft_correction") {
-        return Promise.resolve({
-          slug: "memory-profile-python-rust-current-stack",
-          content: "Memory update request:\n\n- Review profile overview.\n",
-          targetPath:
-            "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/memory-profile-python-rust-current-stack.md",
-        });
+        return Promise.resolve(correctionDraftFixture(
+          "memory-profile-python-rust-current-stack",
+          "Memory update request:\n\n- Review profile overview.\n",
+        ));
       }
       if (command === "write_correction") {
-        return Promise.resolve(
-          "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/memory-profile-python-rust-current-stack.md",
-        );
+        return Promise.resolve({
+          path: "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/memory-profile-python-rust-current-stack.md",
+          changeId: "change-memory-profile-python-rust-current-stack",
+        });
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
@@ -903,17 +932,17 @@ describe("App Codex audit", () => {
         return Promise.resolve(auditTask("succeeded", args?.mode ?? "curated"));
       }
       if (command === "draft_correction_from_content") {
-        return Promise.resolve({
-          slug: "correction-primary-stack",
-          content: auditRun.report.suggestedCorrections[0].content,
-          targetPath:
-            "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/20260609-correction-primary-stack.md",
-        });
+        return Promise.resolve(correctionDraftFixture(
+          "correction-primary-stack",
+          auditRun.report.suggestedCorrections[0].content,
+          "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/20260609-correction-primary-stack.md",
+        ));
       }
       if (command === "write_correction") {
-        return Promise.resolve(
-          "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/20260609-correction-primary-stack.md",
-        );
+        return Promise.resolve({
+          path: "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/20260609-correction-primary-stack.md",
+          changeId: "change-correction-primary-stack",
+        });
       }
       return Promise.reject(new Error(`unexpected command: ${command}`));
     });
@@ -963,9 +992,11 @@ describe("App Codex audit", () => {
 
     await waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith("draft_correction_from_content", {
+        agent: "codex",
         rootOverride: null,
         slug: "correction-primary-stack",
         content: auditRun.report.suggestedCorrections[0].content,
+        targets: expect.any(Array),
       }),
     );
     expect(getByRole("heading", { name: "修正笔记" })).toBeInTheDocument();
@@ -982,10 +1013,12 @@ describe("App Codex audit", () => {
       expect(invokeMock).toHaveBeenCalledWith("write_correction", {
         rootOverride: null,
         draft: {
-          slug: "correction-primary-stack",
-          content: editedCorrectionContent,
-          targetPath:
+          ...correctionDraftFixture(
+            "correction-primary-stack",
+            auditRun.report.suggestedCorrections[0].content,
             "/Users/qsh/.codex/memories/extensions/ad_hoc/notes/20260609-correction-primary-stack.md",
+          ),
+          content: editedCorrectionContent,
         },
       }),
     );

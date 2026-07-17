@@ -26,4 +26,21 @@ describe("memory parser parity", () => {
     expect(registry.some((entry) => entry.summary.startsWith("when the user asks"))).toBe(true);
     expect(registry.some((entry) => entry.summary.includes("scope:"))).toBe(false);
   });
+
+  it("preserves targeted change metadata as part of the parsed claim", () => {
+    const metadata = {
+      id: "change-a",
+      operation: "replace",
+      targetEntryIds: ["claim-a"],
+      revertsChangeId: null,
+      createdAt: "2026-07-17T00:00:00.000Z",
+    };
+    const [entry] = parseEntries(
+      "extensions/ad_hoc/notes/change-a.md",
+      `## Agent Backplane change change-a\n\n<!-- agent-backplane-change ${JSON.stringify(metadata)} -->\n\nMemory update request:\n\n- Project A is archived.\n`,
+    );
+
+    expect(entry.change).toEqual(metadata);
+    expect(entry.summary).toBe("Project A is archived.");
+  });
 });

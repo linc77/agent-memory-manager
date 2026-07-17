@@ -28,10 +28,12 @@ const api: BackplaneDesktopApi = {
         startLine,
         endLine,
       }),
-    draftCorrection: (rootOverride, slug, bulletLines) =>
-      ipcRenderer.invoke(channels.draftCorrection, { rootOverride, slug, bulletLines }),
-    draftCorrectionFromContent: (rootOverride, slug, content) =>
-      ipcRenderer.invoke(channels.draftCorrectionFromContent, { rootOverride, slug, content }),
+    draftCorrection: (agent, rootOverride, slug, bulletLines, targets) =>
+      ipcRenderer.invoke(channels.draftCorrection, { agent, rootOverride, slug, bulletLines, targets }),
+    draftCorrectionFromContent: (agent, rootOverride, slug, content, targets) =>
+      ipcRenderer.invoke(channels.draftCorrectionFromContent, { agent, rootOverride, slug, content, targets }),
+    draftRevert: (agent, rootOverride, change, sourcePath) =>
+      ipcRenderer.invoke(channels.draftRevert, { agent, rootOverride, change, sourcePath }),
     writeCorrection: (rootOverride, draft) =>
       ipcRenderer.invoke(channels.writeCorrection, { rootOverride, draft }),
   },
