@@ -9,6 +9,7 @@ export interface UpdaterClient {
   checkForUpdates(): Promise<unknown>;
   downloadUpdate(): Promise<unknown>;
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
+  setFeedURL(options: UpdateFeed): void;
   on(event: "checking-for-update", listener: () => void): unknown;
   on(event: "update-available", listener: (info: UpdateInfo) => void): unknown;
   on(event: "update-not-available", listener: (info: UpdateInfo) => void): unknown;
@@ -17,6 +18,31 @@ export interface UpdaterClient {
   on(event: "update-cancelled", listener: (info: UpdateInfo) => void): unknown;
   on(event: "error", listener: (error: Error) => void): unknown;
 }
+
+export type UpdateFeed =
+  | {
+      provider: "generic";
+      url: string;
+      useMultipleRangeRequest: false;
+    }
+  | {
+      provider: "github";
+      owner: string;
+      repo: string;
+    };
+
+export const updateFeeds: readonly UpdateFeed[] = [
+  {
+    provider: "generic",
+    url: "https://github.com/linc77/agent-backplane/releases/latest/download",
+    useMultipleRangeRequest: false,
+  },
+  {
+    provider: "github",
+    owner: "linc77",
+    repo: "agent-backplane",
+  },
+];
 
 export interface AppUpdaterService {
   getState(): AppUpdateState;
@@ -45,13 +71,14 @@ function updateInfo(currentVersion: string, info: UpdateInfo): AppUpdateInfo {
 
 export function sanitizeUpdateError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
+  const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
   if (/Cannot find latest(?:-mac)?\.yml/i.test(message)) {
     return "Automatic update metadata is missing from the latest release.";
   }
   if (/signature|code object is not signed|notari[sz]/i.test(message)) {
     return "The downloaded update could not be verified by the operating system.";
   }
-  if (/timed? ?out|ENOTFOUND|ECONN|network/i.test(message)) {
+  if (/timed[ _-]?out|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONN|ERR_(?:NAME_NOT_RESOLVED|CONNECTION|INTERNET|NETWORK|PROXY|TUNNEL|ADDRESS_UNREACHABLE)/i.test(`${code} ${message}`)) {
     return "The update server could not be reached. Check your network and try again.";
   }
   return message
@@ -86,8 +113,15 @@ export function createAppUpdaterService({
     ...state,
     update: state.update ? { ...state.update } : null,
   });
+  let feedIndex = 0;
+
+  const selectFeed = (index: number) => {
+    feedIndex = index;
+    updater.setFeedURL(updateFeeds[feedIndex]);
+  };
 
   if (isPackaged) {
+    selectFeed(feedIndex);
     updater.autoDownload = false;
     updater.autoInstallOnAppQuit = false;
     updater.allowPrerelease = false;
@@ -138,8 +172,16 @@ export function createAppUpdaterService({
       mergeState({ phase: "checking", progress: null, error: null });
       try {
         await updater.checkForUpdates();
-      } catch (error) {
-        mergeState({ phase: "error", error: sanitizeUpdateError(error) });
+      } catch {
+        selectFeed((feedIndex + 1) % updateFeeds.length);
+        mergeState({ phase: "checking", progress: null, error: null });
+        try {
+          await updater.checkForUpdates();
+          return snapshot();
+        } catch (fallbackError) {
+          mergeState({ phase: "error", progress: null, error: sanitizeUpdateError(fallbackError) });
+          return snapshot();
+        }
       }
       return snapshot();
     },
