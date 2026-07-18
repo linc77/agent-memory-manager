@@ -73,6 +73,7 @@ export interface UiText {
     resolvedPath: string;
     reveal: string;
     invalid: string;
+    libraryScope: string;
     globalScope: string;
     projectScope: string;
     directory: string;
@@ -97,6 +98,42 @@ export interface UiText {
     usageSummary: (count: number, lastUsed: string, agents: string) => string;
     todayAt: (time: string) => string;
     noUsage: string;
+    project: string;
+    addProject: string;
+    noProject: string;
+    noProjectHint: string;
+    enabledTab: (count: number) => string;
+    availableTab: (count: number) => string;
+    profilesTab: (count: number) => string;
+    globalInherited: string;
+    projectManaged: string;
+    projectExisting: string;
+    addToProject: string;
+    removeFromProject: string;
+    unavailableSource: string;
+    globalBaselineNote: string;
+    saveAsProfile: string;
+    profileName: string;
+    profileNamePlaceholder: string;
+    saveProfile: string;
+    savingProfile: string;
+    cancelProfile: string;
+    applyProfile: string;
+    deleteProfile: string;
+    profileSkillCount: (count: number) => string;
+    emptyProfiles: string;
+    profileSaved: string;
+    profileApplied: string;
+    syncProject: string;
+    syncingProject: string;
+    synced: string;
+    pendingSync: (count: number) => string;
+    unapplied: string;
+    drifted: string;
+    selectionFailed: (error: string) => string;
+    profileFailed: (error: string) => string;
+    syncFailed: (error: string) => string;
+    syncResult: (added: number, removed: number) => string;
   };
   mcp: {
     eyebrow: string;
@@ -358,6 +395,7 @@ const zhCN: UiText = {
     resolvedPath: "实际位置",
     reveal: "在 Finder 中显示",
     invalid: "清单异常",
+    libraryScope: "资源库",
     globalScope: "全局",
     projectScope: "项目",
     directory: "真实目录",
@@ -383,6 +421,42 @@ const zhCN: UiText = {
       `使用 ${count} 次 · 最近使用于 ${lastUsed} · ${agents}`,
     todayAt: (time) => `今天 ${time}`,
     noUsage: "暂无使用记录",
+    project: "项目",
+    addProject: "添加项目",
+    noProject: "还没有选择项目",
+    noProjectHint: "添加一个项目文件夹后，就可以为它组合并应用 Skill。",
+    enabledTab: (count) => `已启用 ${count}`,
+    availableTab: (count) => `可添加 ${count}`,
+    profilesTab: (count) => `组合 ${count}`,
+    globalInherited: "全局继承",
+    projectManaged: "项目组合",
+    projectExisting: "项目已有",
+    addToProject: "添加到项目",
+    removeFromProject: "从组合移除",
+    unavailableSource: "没有可分配的资源库来源",
+    globalBaselineNote: "全局 Skill 会被所有项目继承；项目组合只管理资源库与项目目录中的 Skill。",
+    saveAsProfile: "保存为组合",
+    profileName: "组合名称",
+    profileNamePlaceholder: "例如：Electron 开发",
+    saveProfile: "保存组合",
+    savingProfile: "保存中...",
+    cancelProfile: "取消",
+    applyProfile: "用于当前项目",
+    deleteProfile: "删除组合",
+    profileSkillCount: (count) => `${count} 个 Skill`,
+    emptyProfiles: "还没有保存的 Skill 组合。",
+    profileSaved: "Skill 组合已保存。",
+    profileApplied: "组合已用于当前项目，等待应用到项目目录。",
+    syncProject: "应用到项目",
+    syncingProject: "正在应用...",
+    synced: "已同步",
+    pendingSync: (count) => `待应用 ${count} 个 Skill`,
+    unapplied: "尚未应用",
+    drifted: "项目目录有变化",
+    selectionFailed: (error) => `更新项目组合失败：${error}`,
+    profileFailed: (error) => `组合操作失败：${error}`,
+    syncFailed: (error) => `应用失败：${error}`,
+    syncResult: (added, removed) => `已应用到项目：新增 ${added}，移除 ${removed}。`,
   },
   mcp: {
     eyebrow: "工具连接",
@@ -643,6 +717,7 @@ const enUS: UiText = {
     resolvedPath: "Resolved path",
     reveal: "Reveal in Finder",
     invalid: "Invalid manifest",
+    libraryScope: "Library",
     globalScope: "Global",
     projectScope: "Project",
     directory: "Directory",
@@ -668,6 +743,42 @@ const enUS: UiText = {
       `Used ${count} times · Last used ${lastUsed} · ${agents}`,
     todayAt: (time) => `Today ${time}`,
     noUsage: "No usage recorded",
+    project: "Project",
+    addProject: "Add project",
+    noProject: "No project selected",
+    noProjectHint: "Add a project folder to compose and apply Skills for it.",
+    enabledTab: (count) => `Enabled ${count}`,
+    availableTab: (count) => `Available ${count}`,
+    profilesTab: (count) => `Profiles ${count}`,
+    globalInherited: "Inherited globally",
+    projectManaged: "Project profile",
+    projectExisting: "Already in project",
+    addToProject: "Add to project",
+    removeFromProject: "Remove from profile",
+    unavailableSource: "No assignable library source",
+    globalBaselineNote: "Global Skills are inherited by every project. Project profiles manage only library and project Skills.",
+    saveAsProfile: "Save as profile",
+    profileName: "Profile name",
+    profileNamePlaceholder: "For example: Electron development",
+    saveProfile: "Save profile",
+    savingProfile: "Saving...",
+    cancelProfile: "Cancel",
+    applyProfile: "Use for this project",
+    deleteProfile: "Delete profile",
+    profileSkillCount: (count) => `${count} Skills`,
+    emptyProfiles: "No Skill profiles saved yet.",
+    profileSaved: "Skill profile saved.",
+    profileApplied: "Profile selected for this project and ready to apply.",
+    syncProject: "Apply to project",
+    syncingProject: "Applying...",
+    synced: "Synced",
+    pendingSync: (count) => `${count} Skills pending`,
+    unapplied: "Not applied",
+    drifted: "Project directory changed",
+    selectionFailed: (error) => `Could not update the project profile: ${error}`,
+    profileFailed: (error) => `Profile operation failed: ${error}`,
+    syncFailed: (error) => `Apply failed: ${error}`,
+    syncResult: (added, removed) => `Applied to project: ${added} added, ${removed} removed.`,
   },
   mcp: {
     eyebrow: "Tool connections",

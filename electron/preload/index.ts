@@ -39,6 +39,14 @@ const api: BackplaneDesktopApi = {
     loadUsage: (targets) => ipcRenderer.invoke(channels.loadSkillUsage, { targets }),
     saveManifest: (input, projectRootOverride = null) =>
       ipcRenderer.invoke(channels.saveSkillManifest, { input, projectRootOverride }),
+    loadWorkspace: () => ipcRenderer.invoke(channels.loadSkillWorkspace, {}),
+    chooseProject: () => ipcRenderer.invoke(channels.chooseSkillProject, {}),
+    saveSelection: (input) => ipcRenderer.invoke(channels.saveProjectSkillSelection, input),
+    saveProfile: (input) => ipcRenderer.invoke(channels.saveSkillProfile, input),
+    deleteProfile: (profileId) => ipcRenderer.invoke(channels.deleteSkillProfile, { profileId }),
+    applyProfile: (input) => ipcRenderer.invoke(channels.applySkillProfile, input),
+    syncProject: (projectId, agent) =>
+      ipcRenderer.invoke(channels.syncProjectSkills, { projectId, agent }),
   },
   agentConfig: {
     load: () => ipcRenderer.invoke(channels.loadAgentConfigInventory),

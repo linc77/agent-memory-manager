@@ -1,17 +1,26 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
-import { app, ipcMain, session, shell } from "electron";
+import { app, dialog, ipcMain, session, shell } from "electron";
+import { realpath } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import electronUpdater from "electron-updater";
 import type { ZodType } from "zod";
 import { channels } from "../../shared/channels";
 import {
   agentInputSchema,
+  applySkillProfileSchema,
+  deleteSkillProfileSchema,
   draftCorrectionFromContentSchema,
   draftCorrectionSchema,
   draftRevertSchema,
+  emptyInputSchema,
   memoryProfileInputSchema,
   profileIdInputSchema,
   revealSourceSchema,
   rootOverrideSchema,
+  projectSkillBindingSchema,
+  saveProjectSkillSelectionSchema,
+  saveSkillProfileSchema,
   saveAgentProfileSchema,
   saveSkillManifestSchema,
   skillInputSchema,
@@ -37,6 +46,7 @@ import {
 import { resolveAgentMemoryRoot, resolveMemoryRoot } from "../services/memory/paths";
 import { loadMcpInventory } from "../services/mcp";
 import { loadSkillInventory, saveSkillManifest } from "../services/skills";
+import { createSkillProfileService } from "../services/skillProfiles";
 import { loadSkillUsage } from "../services/skillUsage";
 import { isTrustedRendererUrl } from "../windowPolicy";
 
@@ -86,6 +96,9 @@ function handle<Input, Output>(
 
 export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: string) {
   const agentConfig = createAgentConfigService(defaultAgentConfigPaths(), new ElectronSecretStore());
+  const skillProfiles = createSkillProfileService({
+    catalogPath: join(homedir(), ".agent-backplane", "skill-profiles.json"),
+  });
   ipcMain.handle(channels.getAppUpdateState, (event) => {
     assertTrustedSender(event, window, developmentOrigin);
     return getAppUpdater().getState();
@@ -112,6 +125,29 @@ export function registerIpcHandlers(window: BrowserWindow, developmentOrigin?: s
     loadSkillUsage(targets));
   handle(channels.saveSkillManifest, saveSkillManifestSchema, window, developmentOrigin, ({ input, projectRootOverride }) =>
     saveSkillManifest(input, projectRootOverride));
+  handle(channels.loadSkillWorkspace, emptyInputSchema, window, developmentOrigin, () =>
+    skillProfiles.load());
+  handle(channels.chooseSkillProject, emptyInputSchema, window, developmentOrigin, async () => {
+    const selection = await dialog.showOpenDialog(window, {
+      title: "Choose a project folder",
+      properties: ["openDirectory"],
+    });
+    const selectedPath = selection.filePaths[0];
+    if (selection.canceled || !selectedPath) return null;
+    const canonicalPath = await realpath(selectedPath);
+    const workspace = await skillProfiles.registerProject(canonicalPath);
+    return workspace.projects.find((project) => project.rootPath === canonicalPath) ?? null;
+  });
+  handle(channels.saveProjectSkillSelection, saveProjectSkillSelectionSchema, window, developmentOrigin, (input) =>
+    skillProfiles.saveSelection(input));
+  handle(channels.saveSkillProfile, saveSkillProfileSchema, window, developmentOrigin, (input) =>
+    skillProfiles.saveProfile(input));
+  handle(channels.deleteSkillProfile, deleteSkillProfileSchema, window, developmentOrigin, ({ profileId }) =>
+    skillProfiles.deleteProfile(profileId));
+  handle(channels.applySkillProfile, applySkillProfileSchema, window, developmentOrigin, (input) =>
+    skillProfiles.applyProfile(input));
+  handle(channels.syncProjectSkills, projectSkillBindingSchema, window, developmentOrigin, (input) =>
+    skillProfiles.sync(input));
   handle(channels.loadMcpInventory, agentInputSchema, window, developmentOrigin, ({ agent }) =>
     loadMcpInventory(agent));
   handle(channels.startMemoryProfileGeneration, memoryProfileInputSchema, window, developmentOrigin, ({ agent, locale }) =>

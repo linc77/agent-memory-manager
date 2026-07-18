@@ -14,19 +14,19 @@ export const agentMeta: Record<
   codex: {
     label: "Codex",
     mark: "◎",
-    skillTools: ["Agents", "Codex"],
+    skillTools: ["Library", "Agents", "Codex"],
     memoryWritable: true,
   },
   claudeCode: {
     label: "Claude Code",
     mark: "C",
-    skillTools: ["Agents", "Claude Code"],
+    skillTools: ["Library", "Agents", "Claude Code"],
     memoryWritable: false,
   },
   hermes: {
     label: "Hermes",
     mark: "H",
-    skillTools: ["Hermes"],
+    skillTools: ["Library", "Hermes"],
     memoryWritable: false,
   },
 };

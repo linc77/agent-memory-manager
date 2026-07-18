@@ -9,6 +9,7 @@ export const memoryProfileInputSchema = z.object({
   locale: memoryProfileLocaleSchema,
 }).strict();
 export const skillInputSchema = z.object({ projectRootOverride: z.string().nullable().optional() }).strict();
+export const emptyInputSchema = z.object({}).strict();
 export const skillUsageInputSchema = z.object({
   targets: z.array(z.object({
     capabilityId: z.string().min(1).max(256),
@@ -23,6 +24,35 @@ export const saveSkillManifestSchema = z.object({
     source: z.string().min(1).max(2_000_000),
     expectedContentHash: z.string().regex(/^[a-f0-9]{64}$/),
   }).strict(),
+}).strict();
+const projectIdSchema = z.string().min(1).max(256);
+const profileIdSchema = z.string().min(1).max(256);
+export const saveProjectSkillSelectionSchema = z.object({
+  projectId: projectIdSchema,
+  agent: agentSchema,
+  skills: z.array(z.object({
+    name: z.string().min(1).max(256),
+    sourcePath: z.string().min(1).max(4096),
+    contentHash: z.string().min(1).max(256),
+    scope: z.enum(["library", "global", "project"]),
+  }).strict()).max(5_000),
+}).strict();
+export const saveSkillProfileSchema = z.object({
+  id: profileIdSchema.nullable(),
+  projectId: projectIdSchema,
+  agent: agentSchema,
+  name: z.string().min(1).max(120),
+}).strict();
+export const deleteSkillProfileSchema = z.object({
+  profileId: profileIdSchema,
+}).strict();
+export const applySkillProfileSchema = z.object({
+  profileId: profileIdSchema,
+  projectId: projectIdSchema,
+}).strict();
+export const projectSkillBindingSchema = z.object({
+  projectId: projectIdSchema,
+  agent: agentSchema,
 }).strict();
 export const sourceExcerptSchema = z.object({
   rootOverride: z.string().nullable(),

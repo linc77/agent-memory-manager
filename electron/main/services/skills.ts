@@ -34,27 +34,19 @@ function globalRoot(id: string, label: string, path: string, tool: string): Skil
   return { id, label, path, tool, scope: "global" };
 }
 
-function projectRoot(id: string, root: string, relativePath: string, tool: string): SkillRoot {
-  return { id, label: `Project · ${tool}`, path: join(root, relativePath), tool, scope: "project" };
+function libraryRoot(id: string, label: string, path: string): SkillRoot {
+  return { id, label, path, tool: "Library", scope: "library" };
 }
 
-async function detectCurrentProjectRoot() {
-  let candidate = resolve(process.cwd());
-  while (true) {
-    for (const marker of [".git", "AGENTS.md", "package.json"]) {
-      if (await stat(join(candidate, marker)).then(() => true).catch(() => false)) {
-        return candidate;
-      }
-    }
-    const parent = dirname(candidate);
-    if (parent === candidate) return null;
-    candidate = parent;
-  }
+function projectRoot(id: string, root: string, relativePath: string, tool: string): SkillRoot {
+  return { id, label: `Project · ${tool}`, path: join(root, relativePath), tool, scope: "project" };
 }
 
 async function defaultSkillRoots(projectRootOverride?: string | null) {
   const home = homedir();
   const roots: SkillRoot[] = [
+    libraryRoot("backplane-library", "Backplane Library", join(home, ".agent-backplane/skills")),
+    libraryRoot("skills-manager-library", "Imported Library", join(home, ".skills-manager/skills")),
     globalRoot("agents", "Agent Skills", join(home, ".agents/skills"), "Agents"),
     globalRoot("codex", "Codex", join(home, ".codex/skills"), "Codex"),
     globalRoot("claude", "Claude Code", join(home, ".claude/skills"), "Claude Code"),
@@ -64,8 +56,8 @@ async function defaultSkillRoots(projectRootOverride?: string | null) {
     globalRoot("opencode", "OpenCode", join(home, ".config/opencode/skills"), "OpenCode"),
   ];
   const requested = projectRootOverride?.trim();
-  const project = requested ? resolve(requested) : await detectCurrentProjectRoot();
-  if (project) {
+  if (requested) {
+    const project = resolve(requested);
     roots.push(
       projectRoot("project-agents", project, ".agents/skills", "Agents"),
       projectRoot("project-codex", project, ".codex/skills", "Codex"),

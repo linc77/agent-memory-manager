@@ -2,7 +2,9 @@
 
 **Backplane** is the desktop control plane for understanding and controlling what local Agents know and can do. Agent Backplane keeps Codex, Claude Code, and Hermes contexts separate, inspects Memory, discovers Skills and MCP servers, and manages each Agent's provider profiles.
 
-Skills are discovered directly from native global and project directories. The app groups identical filesystem copies into logical capabilities and writes only a derived snapshot to `~/.agent-backplane/skill-inventory.json`.
+Skills are discovered from Backplane/imported libraries plus native global and project directories. The app groups identical filesystem copies into logical capabilities and writes a derived snapshot to `~/.agent-backplane/skill-inventory.json`.
+
+Each project can keep an Agent-specific Skill selection, save it as a reusable profile, and apply that profile to another project. Backplane persists this state in `~/.agent-backplane/skill-profiles.json` and deploys only managed symlinks to the Agent's native project directory (`.agents/skills`, `.claude/skills`, or `.hermes/skills`). Existing project Skills are never overwritten or removed. Global Skills remain a shared baseline inherited by every project.
 
 ## Memory control
 

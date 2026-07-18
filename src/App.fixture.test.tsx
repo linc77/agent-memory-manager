@@ -125,6 +125,10 @@ describe("App browser fixture mode", () => {
     fireEvent.click(await findByRole("button", { name: "Skills" }));
 
     expect(await findByRole("heading", { name: "Codex · Skills" })).toBeInTheDocument();
+    expect(await findByRole("combobox", { name: "项目" })).toHaveValue("fixture-project");
+    expect(await findByRole("button", { name: "已启用 3" })).toBeInTheDocument();
+    expect(await findByRole("button", { name: "可添加 1" })).toBeInTheDocument();
+    expect(await findByRole("button", { name: "组合 1" })).toBeInTheDocument();
     expect(await findByRole("button", { name: "查看 find-skills 详情" })).toBeInTheDocument();
     expect(queryByRole("heading", { name: "Skill 文档" })).not.toBeInTheDocument();
     expect(getAllByText("2 份副本").length).toBeGreaterThan(0);
@@ -133,7 +137,7 @@ describe("App browser fixture mode", () => {
     expect(await findByText("使用 3 次")).toBeInTheDocument();
     expect(getAllByText("Codex").length).toBeGreaterThan(0);
     expect(await findByRole("navigation", { name: "分类" })).toBeInTheDocument();
-    expect(await findByRole("button", { name: "全部 4" })).toBeInTheDocument();
+    expect(await findByRole("button", { name: "全部 3" })).toBeInTheDocument();
     expect(queryByRole("button", { name: /研究/ })).not.toBeInTheDocument();
 
     fireEvent.click(await findByRole("button", { name: "查看 find-skills 详情" }));
@@ -179,12 +183,22 @@ describe("App browser fixture mode", () => {
     expect(queryByRole("separator", { name: "调整依据栏宽度" })).not.toBeInTheDocument();
     expect(container.querySelector(".app-shell")).toHaveClass("skills-mode");
 
+    fireEvent.click(await findByRole("button", { name: "可添加 1" }));
     fireEvent.change(await findByPlaceholderText("搜索能力、工具或路径..."), {
       target: { value: "diagnose" },
     });
 
     expect(await findByRole("button", { name: "查看 diagnose 详情" })).toBeInTheDocument();
     expect(queryByText("find-skills")).not.toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "添加到项目: diagnose" }));
+    fireEvent.click(await findByRole("button", { name: "已启用 4" }));
+    expect(await findByRole("button", { name: "从组合移除: diagnose" })).toBeInTheDocument();
+
+    fireEvent.click(await findByRole("button", { name: "组合 1" }));
+    fireEvent.click(await findByRole("button", { name: "用于当前项目" }));
+    expect(await findByText("组合已用于当前项目，等待应用到项目目录。")).toBeInTheDocument();
+    fireEvent.click(await findByRole("button", { name: "应用到项目" }));
+    expect(await findByText("已应用到项目：新增 1，移除 0。")).toBeInTheDocument();
   });
 
   it("switches the global Agent context across memory, Skills, MCP, and configuration", async () => {

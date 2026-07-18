@@ -3,6 +3,7 @@ import type {
   AgentConfigInventory,
   AgentKind,
   AgentMemorySnapshot,
+  ApplySkillProfileInput,
   CorrectionDraft,
   McpInventory,
   MemoryProfileGenerationTask,
@@ -11,9 +12,14 @@ import type {
   MemoryChangeTarget,
   MemoryChangeWriteResult,
   SaveAgentProfileInput,
+  SaveProjectSkillSelectionInput,
+  SaveSkillProfileInput,
   SaveSkillManifestInput,
   ScanResult,
   SkillInventory,
+  SkillProfileWorkspace,
+  SkillProject,
+  SkillSyncResult,
   SkillUsageInventory,
   SkillUsageTarget,
 } from "../../src/lib/types";
@@ -73,6 +79,13 @@ export interface BackplaneDesktopApi {
       input: SaveSkillManifestInput,
       projectRootOverride?: string | null,
     ): Promise<SkillInventory>;
+    loadWorkspace(): Promise<SkillProfileWorkspace>;
+    chooseProject(): Promise<SkillProject | null>;
+    saveSelection(input: SaveProjectSkillSelectionInput): Promise<SkillProfileWorkspace>;
+    saveProfile(input: SaveSkillProfileInput): Promise<SkillProfileWorkspace>;
+    deleteProfile(profileId: string): Promise<SkillProfileWorkspace>;
+    applyProfile(input: ApplySkillProfileInput): Promise<SkillProfileWorkspace>;
+    syncProject(projectId: string, agent: AgentKind): Promise<SkillSyncResult>;
   };
   agentConfig: {
     load(): Promise<AgentConfigInventory>;

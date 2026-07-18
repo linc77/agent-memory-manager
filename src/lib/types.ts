@@ -150,7 +150,7 @@ export interface MemoryProfileGenerationTask {
   profile: MemoryProfile | null;
 }
 
-export type SkillScope = "global" | "project";
+export type SkillScope = "library" | "global" | "project";
 export type SkillFilesystemKind = "directory" | "symlink";
 export type SkillHealth = "ready" | "invalid";
 
@@ -213,6 +213,125 @@ export interface SaveSkillManifestInput {
 }
 
 export type AgentKind = "codex" | "claudeCode" | "hermes";
+
+export interface SkillSourceInput {
+  name: string;
+  sourcePath: string;
+  contentHash: string;
+  scope: SkillScope;
+}
+
+export interface SkillSourceRef extends SkillSourceInput {
+  sourceId: string;
+  directoryName: string;
+  manifestPath: string;
+}
+
+export interface SkillProject {
+  id: string;
+  name: string;
+  rootPath: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SkillProfile {
+  id: string;
+  name: string;
+  agent: AgentKind;
+  skills: SkillSourceRef[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SkillDeploymentEntry {
+  sourceId: string;
+  sourcePath: string;
+  destinationPath: string;
+  contentHash: string;
+}
+
+export type SkillBindingSyncState =
+  | "never"
+  | "pending"
+  | "synced"
+  | "drifted"
+  | "conflict"
+  | "failed";
+
+export interface SkillBindingSyncStatus {
+  state: SkillBindingSyncState;
+  syncedAt: string | null;
+  message: string | null;
+}
+
+export interface ProjectSkillBinding {
+  projectId: string;
+  agent: AgentKind;
+  profileId: string | null;
+  skills: SkillSourceRef[];
+  deployments: SkillDeploymentEntry[];
+  syncStatus: SkillBindingSyncStatus;
+  updatedAt: string;
+}
+
+export interface SkillProfileWorkspace {
+  schemaVersion: 1;
+  generatedAt: string;
+  catalogPath: string;
+  projects: SkillProject[];
+  profiles: SkillProfile[];
+  bindings: ProjectSkillBinding[];
+}
+
+export interface SaveProjectSkillSelectionInput {
+  projectId: string;
+  agent: AgentKind;
+  skills: SkillSourceInput[];
+}
+
+export interface SaveSkillProfileInput {
+  id: string | null;
+  name: string;
+  projectId: string;
+  agent: AgentKind;
+}
+
+export interface ApplySkillProfileInput {
+  profileId: string;
+  projectId: string;
+}
+
+export interface SyncProjectSkillsInput {
+  projectId: string;
+  agent: AgentKind;
+}
+
+export interface SkillSourceDrift {
+  sourceId: string;
+  name: string;
+  expectedContentHash: string;
+  actualContentHash: string;
+}
+
+export interface SkillSyncConflict {
+  directoryName: string;
+  destinationPath: string;
+  reason: "unmanaged-target" | "managed-target-changed";
+}
+
+export type SkillSyncState = "synced" | "unchanged" | "conflict" | "failed";
+
+export interface SkillSyncResult {
+  status: SkillSyncState;
+  workspace: SkillProfileWorkspace;
+  created: string[];
+  removed: string[];
+  unchanged: string[];
+  driftedSources: SkillSourceDrift[];
+  conflicts: SkillSyncConflict[];
+  error: string | null;
+}
 
 export interface SkillUsageTarget {
   capabilityId: string;

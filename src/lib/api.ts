@@ -3,6 +3,7 @@ import type {
   AgentConfigInventory,
   AgentKind,
   AgentMemorySnapshot,
+  ApplySkillProfileInput,
   CorrectionDraft,
   MemoryChangeMetadata,
   MemoryChangeTarget,
@@ -10,10 +11,17 @@ import type {
   MemoryProfileGenerationTask,
   MemoryProfileLocale,
   McpInventory,
+  ProjectSkillBinding,
   ScanResult,
   SaveAgentProfileInput,
+  SaveProjectSkillSelectionInput,
+  SaveSkillProfileInput,
   SaveSkillManifestInput,
   SkillInventory,
+  SkillProfileWorkspace,
+  SkillSourceInput,
+  SkillSourceRef,
+  SkillSyncResult,
   SkillUsageInventory,
   SkillUsageTarget,
 } from "./types";
@@ -181,6 +189,104 @@ export function saveSkillManifest(
   }
 
   return desktopApi().skills.saveManifest(input, projectRootOverride);
+}
+
+export function loadSkillWorkspace() {
+  if (isFixtureMode()) {
+    return Promise.resolve(structuredClone(fixtureSkillWorkspace));
+  }
+
+  return desktopApi().skills.loadWorkspace();
+}
+
+export function chooseSkillProject() {
+  if (isFixtureMode()) {
+    return Promise.resolve(structuredClone(fixtureSkillWorkspace.projects[0] ?? null));
+  }
+
+  return desktopApi().skills.chooseProject();
+}
+
+export function saveProjectSkillSelection(input: SaveProjectSkillSelectionInput) {
+  if (isFixtureMode()) {
+    const workspace = structuredClone(fixtureSkillWorkspace);
+    const index = workspace.bindings.findIndex((binding) =>
+      binding.projectId === input.projectId && binding.agent === input.agent);
+    const previous = workspace.bindings[index];
+    const binding: ProjectSkillBinding = {
+      projectId: input.projectId,
+      agent: input.agent,
+      profileId: previous?.profileId ?? null,
+      skills: input.skills.map(fixtureSourceRef),
+      deployments: previous?.deployments ?? [],
+      syncStatus: previous?.syncStatus ?? { state: "never", syncedAt: null, message: null },
+      updatedAt: "2026-07-18T00:00:00.000Z",
+    };
+    if (index >= 0) workspace.bindings[index] = binding;
+    else workspace.bindings.push(binding);
+    return Promise.resolve(workspace);
+  }
+
+  return desktopApi().skills.saveSelection(input);
+}
+
+export function saveSkillProfile(input: SaveSkillProfileInput) {
+  if (isFixtureMode()) {
+    return Promise.resolve(structuredClone(fixtureSkillWorkspace));
+  }
+
+  return desktopApi().skills.saveProfile(input);
+}
+
+export function deleteSkillProfile(profileId: string) {
+  if (isFixtureMode()) {
+    const workspace = structuredClone(fixtureSkillWorkspace);
+    workspace.profiles = workspace.profiles.filter((profile) => profile.id !== profileId);
+    return Promise.resolve(workspace);
+  }
+
+  return desktopApi().skills.deleteProfile(profileId);
+}
+
+export function applySkillProfile(input: ApplySkillProfileInput) {
+  if (isFixtureMode()) {
+    const workspace = structuredClone(fixtureSkillWorkspace);
+    const profile = workspace.profiles.find((item) => item.id === input.profileId);
+    if (!profile) return Promise.reject(new Error("Skill profile was not found"));
+    const index = workspace.bindings.findIndex((binding) =>
+      binding.projectId === input.projectId && binding.agent === profile.agent);
+    const binding: ProjectSkillBinding = {
+      projectId: input.projectId,
+      agent: profile.agent,
+      profileId: profile.id,
+      skills: profile.skills,
+      deployments: [],
+      syncStatus: { state: "never", syncedAt: null, message: null },
+      updatedAt: "2026-07-18T00:00:00.000Z",
+    };
+    if (index >= 0) workspace.bindings[index] = binding;
+    else workspace.bindings.push(binding);
+    return Promise.resolve(workspace);
+  }
+
+  return desktopApi().skills.applyProfile(input);
+}
+
+export function syncProjectSkills(projectId: string, agent: AgentKind): Promise<SkillSyncResult> {
+  if (isFixtureMode()) {
+    return Promise.resolve({
+      status: "synced",
+      workspace: structuredClone(fixtureSkillWorkspace),
+      created: ["/Users/demo/project/.agents/skills/diagnose"],
+      removed: [],
+      unchanged: [],
+      driftedSources: [],
+      conflicts: [],
+      error: null,
+    });
+  }
+
+  return desktopApi().skills.syncProject(projectId, agent);
 }
 
 export function loadAgentConfigInventory() {
@@ -478,13 +584,22 @@ const fixtureSkillInventory: SkillInventory = {
   invalidCount: 1,
   roots: [
     {
+      id: "skills-manager-library",
+      label: "Imported Library",
+      path: "/Users/demo/.skills-manager/skills",
+      tool: "Library",
+      scope: "library",
+      exists: true,
+      copyCount: 1,
+    },
+    {
       id: "agents",
       label: "Agent Skills",
       path: "/Users/demo/.agents/skills",
       tool: "Agents",
       scope: "global",
       exists: true,
-      copyCount: 4,
+      copyCount: 3,
     },
     {
       id: "project-codex",
@@ -567,20 +682,20 @@ const fixtureSkillInventory: SkillInventory = {
       contentHash: "hash-diagnose",
       health: "ready",
       copyCount: 1,
-      tools: ["Agents"],
+      tools: ["Library"],
       copies: [
         {
           id: "copy-diagnose",
           name: "diagnose",
           description: "Diagnose hard bugs with a disciplined feedback loop.",
           markdown: "# Diagnose\n\nUse a disciplined diagnosis loop.",
-          path: "/Users/demo/.agents/skills/diagnose",
-          manifestPath: "/Users/demo/.agents/skills/diagnose/SKILL.md",
+          path: "/Users/demo/.skills-manager/skills/diagnose",
+          manifestPath: "/Users/demo/.skills-manager/skills/diagnose/SKILL.md",
           source: "---\nname: diagnose\ndescription: Diagnose hard bugs with a disciplined feedback loop.\n---\n# Diagnose\n\nUse a disciplined diagnosis loop.\n",
-          tool: "Agents",
-          scope: "global",
+          tool: "Library",
+          scope: "library",
           filesystemKind: "directory",
-          resolvedPath: "/Users/demo/.agents/skills/diagnose",
+          resolvedPath: "/Users/demo/.skills-manager/skills/diagnose",
           valid: true,
           issue: null,
           contentHash: "hash-diagnose",
@@ -700,6 +815,46 @@ const fixtureSkillInventory: SkillInventory = {
       ],
     },
   ],
+};
+
+function fixtureSourceRef(source: SkillSourceInput): SkillSourceRef {
+  const directoryName = source.sourcePath.replace(/\\/g, "/").split("/").filter(Boolean).pop()
+    ?? source.name;
+  return {
+    ...source,
+    sourceId: `fixture-${directoryName}`,
+    directoryName,
+    manifestPath: `${source.sourcePath.replace(/[\\/]$/, "")}/SKILL.md`,
+  };
+}
+
+const fixtureDiagnoseSource = fixtureSourceRef({
+  name: "diagnose",
+  sourcePath: "/Users/demo/.skills-manager/skills/diagnose",
+  contentHash: "hash-diagnose",
+  scope: "library",
+});
+
+const fixtureSkillWorkspace: SkillProfileWorkspace = {
+  schemaVersion: 1,
+  generatedAt: "2026-07-18T00:00:00.000Z",
+  catalogPath: "/Users/demo/.agent-backplane/skill-profiles.json",
+  projects: [{
+    id: "fixture-project",
+    name: "project",
+    rootPath: "/Users/demo/project",
+    createdAt: "2026-07-18T00:00:00.000Z",
+    updatedAt: "2026-07-18T00:00:00.000Z",
+  }],
+  profiles: [{
+    id: "fixture-debug-profile",
+    name: "Debug toolkit",
+    agent: "codex",
+    skills: [fixtureDiagnoseSource],
+    createdAt: "2026-07-18T00:00:00.000Z",
+    updatedAt: "2026-07-18T00:00:00.000Z",
+  }],
+  bindings: [],
 };
 
 const fixtureSkillUsage: SkillUsageInventory = {

@@ -2,15 +2,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   activateAgentProviderProfile,
+  applySkillProfile,
+  chooseSkillProject,
+  deleteSkillProfile,
   draftCorrectionFromContent,
   loadAgentConfigInventory,
   loadAgentMemorySnapshot,
   loadMcpInventory,
   loadSkillInventory,
+  loadSkillWorkspace,
   loadSkillUsage,
   openSourceFile,
   scanMemories,
   saveSkillManifest,
+  saveProjectSkillSelection,
+  saveSkillProfile,
+  syncProjectSkills,
   writeCorrection,
 } from "./api";
 
@@ -30,6 +37,14 @@ Object.defineProperty(window, "backplane", {
       loadUsage: (targets: unknown) => invokeMock("load_skill_usage", { targets }),
       saveManifest: (input: unknown, projectRootOverride: string | null) =>
         invokeMock("save_skill_manifest", { input, projectRootOverride }),
+      loadWorkspace: () => invokeMock("load_skill_workspace"),
+      chooseProject: () => invokeMock("choose_skill_project"),
+      saveSelection: (input: unknown) => invokeMock("save_project_skill_selection", input),
+      saveProfile: (input: unknown) => invokeMock("save_skill_profile", input),
+      deleteProfile: (profileId: string) => invokeMock("delete_skill_profile", { profileId }),
+      applyProfile: (input: unknown) => invokeMock("apply_skill_profile", input),
+      syncProject: (projectId: string, agent: string) =>
+        invokeMock("sync_project_skills", { projectId, agent }),
     },
     agentConfig: {
       load: () => invokeMock("load_agent_config_inventory"),
@@ -93,6 +108,16 @@ describe("fixture API mode", () => {
     expect(inventory.capabilities.find((capability) => capability.name === "find-skills")?.copyCount).toBe(2);
     expect(usage.summaries[0].totalCount).toBe(3);
     expect(usage.summaries[0].agentCounts).toEqual({ codex: 2, claudeCode: 1, hermes: 0 });
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("serves a project Skill workspace without calling Electron IPC", async () => {
+    const workspace = await loadSkillWorkspace();
+    const project = await chooseSkillProject();
+
+    expect(workspace.projects[0].rootPath).toBe("/Users/demo/project");
+    expect(workspace.profiles[0].skills[0].name).toBe("diagnose");
+    expect(project?.id).toBe("fixture-project");
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
@@ -174,6 +199,53 @@ describe("desktop skill API", () => {
     expect(invokeMock).toHaveBeenCalledWith("save_skill_manifest", {
       input,
       projectRootOverride: null,
+    });
+  });
+
+  it("invokes native project Skill workspace commands", async () => {
+    const workspace = { schemaVersion: 1, projects: [], profiles: [], bindings: [] };
+    const project = { id: "project-1", rootPath: "/work/project" };
+    const syncResult = { status: "synced", workspace, created: [], removed: [] };
+    const selection = {
+      projectId: "project-1",
+      agent: "codex" as const,
+      skills: [{
+        name: "diagnose",
+        sourcePath: "/library/diagnose",
+        contentHash: "hash",
+        scope: "library" as const,
+      }],
+    };
+    const profile = { id: null, name: "Debug", projectId: "project-1", agent: "codex" as const };
+    invokeMock
+      .mockResolvedValueOnce(workspace)
+      .mockResolvedValueOnce(project)
+      .mockResolvedValueOnce(workspace)
+      .mockResolvedValueOnce(workspace)
+      .mockResolvedValueOnce(workspace)
+      .mockResolvedValueOnce(workspace)
+      .mockResolvedValueOnce(syncResult);
+
+    await expect(loadSkillWorkspace()).resolves.toBe(workspace);
+    await expect(chooseSkillProject()).resolves.toBe(project);
+    await expect(saveProjectSkillSelection(selection)).resolves.toBe(workspace);
+    await expect(saveSkillProfile(profile)).resolves.toBe(workspace);
+    await expect(applySkillProfile({ profileId: "profile-1", projectId: "project-1" })).resolves.toBe(workspace);
+    await expect(deleteSkillProfile("profile-1")).resolves.toBe(workspace);
+    await expect(syncProjectSkills("project-1", "codex")).resolves.toBe(syncResult);
+
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "load_skill_workspace");
+    expect(invokeMock).toHaveBeenNthCalledWith(2, "choose_skill_project");
+    expect(invokeMock).toHaveBeenNthCalledWith(3, "save_project_skill_selection", selection);
+    expect(invokeMock).toHaveBeenNthCalledWith(4, "save_skill_profile", profile);
+    expect(invokeMock).toHaveBeenNthCalledWith(5, "apply_skill_profile", {
+      profileId: "profile-1",
+      projectId: "project-1",
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(6, "delete_skill_profile", { profileId: "profile-1" });
+    expect(invokeMock).toHaveBeenNthCalledWith(7, "sync_project_skills", {
+      projectId: "project-1",
+      agent: "codex",
     });
   });
 
