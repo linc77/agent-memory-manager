@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   loadMcpInventoryFromPath,
@@ -130,7 +130,7 @@ describe("MCP inventory", () => {
     });
     expect(inventory.servers.find((server) => server.name === "rejected")?.state).toBe("rejected");
     expect(inventory.servers.find((server) => server.name === "pending")?.state).toBe("pending");
-    expect(inventory.sources.some((source) => source.path.endsWith("broken/.mcp.json") && source.state === "invalid")).toBe(true);
+    expect(inventory.sources.some((source) => source.path.endsWith(join("broken", ".mcp.json")) && source.state === "invalid")).toBe(true);
     expect(JSON.stringify(inventory)).not.toMatch(/token|private|secret/);
   });
 
@@ -228,8 +228,8 @@ describe("MCP inventory", () => {
 
   it("resolves Agent config paths from their native environment directories", () => {
     const home = "/Users/demo";
-    expect(resolveMcpConfigPath("codex", { CODEX_HOME: "~/codex-home" }, home)).toBe("/Users/demo/codex-home/config.toml");
-    expect(resolveMcpConfigPath("claudeCode", { CLAUDE_CONFIG_DIR: "/tmp/claude-work" }, home)).toBe("/tmp/claude-work/.claude.json");
-    expect(resolveMcpConfigPath("hermes", { HERMES_HOME: "/tmp/hermes-work" }, home)).toBe("/tmp/hermes-work/config.yaml");
+    expect(resolveMcpConfigPath("codex", { CODEX_HOME: "~/codex-home" }, home)).toBe(join(home, "codex-home", "config.toml"));
+    expect(resolveMcpConfigPath("claudeCode", { CLAUDE_CONFIG_DIR: "/tmp/claude-work" }, home)).toBe(join(resolve("/tmp/claude-work"), ".claude.json"));
+    expect(resolveMcpConfigPath("hermes", { HERMES_HOME: "/tmp/hermes-work" }, home)).toBe(join(resolve("/tmp/hermes-work"), "config.yaml"));
   });
 });
